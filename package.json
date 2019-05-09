@@ -1,0 +1,47 @@
+{
+  "name": "app-handshake",
+  "version": "0.2.0",
+  "description": "Devebot keycloak authentication layerware",
+  "license": "MIT",
+  "homepage": "https://github.com/apporo/app-handshake.git",
+  "author": {
+    "name": "apporo",
+    "email": "apporo@devebot.com",
+    "url": "https://github.com/apporo"
+  },
+  "main": "index.js",
+  "directories": {
+    "lib": "lib/"
+  },
+  "files": [
+    "bin/",
+    "config/",
+    "data/",
+    "lib/"
+  ],
+  "scripts": {
+    "build": "npm run clean && babel ./src -d ./lib",
+    "clean": "rm -rf ./lib",
+    "prepublish": "NODE_ENV=production npm run build"
+  },
+  "keywords": [
+    "devebot",
+    "devebot-plugin"
+  ],
+  "peerDependencies": {
+    "app-tracelog": "^0.2.2",
+    "app-webweaver": "^0.2.2",
+    "devebot": "^0.2.9"
+  },
+  "dependencies": {
+    "app-tracelog": "^0.2.2",
+    "app-webweaver": "^0.2.2",
+    "devebot": "^0.2.9",
+    "keycloak-connect": "^4.8.1"
+  },
+  "devDependencies": {
+    "babel-cli": "^6.26.0",
+    "babel-plugin-minify-mangle-names": "^0.3.0",
+    "babel-preset-env": "^1.6.1"
+  }
+}

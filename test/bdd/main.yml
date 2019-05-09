@@ -1,0 +1,56 @@
+testcases:
+- title: Get verficationId
+  version: 1.0.5-46-gb683158
+  request:
+    method: POST
+    url: http://localhost:7979/handshake/auth/login
+    headers:
+    - name: content-type
+      value: application/json
+    - name: x-request-id
+      value: 3Qrm0mMLSnKEaeD5yBPZDg
+    body: |-
+      {
+        "org": "E621E1F8-C36C-495A-93FC-0C247A3E6FGG",
+        "device": {
+          "imei": "990000862471854",
+          "platform": "iOS"
+        },
+        "appType": "sales",
+        "version": "1.0.0",
+        "credentials": {
+          "phone": {
+            "country": "US",
+            "countryCode": "+1",
+            "number": "2055555555"
+          }
+        }
+      }
+  expectation:
+    status-code:
+      is:
+        equal-to: 200
+    headers:
+      items:
+      - name: Connection
+        is:
+          equal-to: keep-alive
+      - name: X-Request-Id
+        is:
+          equal-to: 3Qrm0mMLSnKEaeD5yBPZDg
+      - name: Content-Type
+        is:
+          equal-to: application/json; charset=utf-8
+    body:
+      has-format: json
+      includes: |-
+        {
+          "code": 2,
+          "data": {
+            "verficationId": "8724"
+          }
+        }
+  tags:
+  - snapshot
+  - acegik
+  created-time: "2019-05-08T21:55:07+07:00"
