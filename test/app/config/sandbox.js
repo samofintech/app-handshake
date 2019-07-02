@@ -1,5 +1,6 @@
 'use strict';
 
+var path = require('path');
 var contextPath = '/handshake';
 
 module.exports = {
@@ -7,8 +8,16 @@ module.exports = {
     contextPath: contextPath,
   },
   plugins: {
+    appDatastore: {
+    },
     appHandshake: {
       contextPath: contextPath,
+    },
+    appRestfront: {
+      contextPath: contextPath,
+      apiPath: '/api',
+      apiVersion: 'v1',
+      mappingStore: path.join(__dirname, '../lib/mappings/req-to-rpc')
     },
     appTracelog: {
       tracingRequestName: 'requestId',
@@ -19,4 +28,17 @@ module.exports = {
     appWebweaver: {
     }
   },
+  bridges: {
+    mongoose: {
+      appDatastore: {
+        manipulator: {
+          connection_options: {
+            host: "127.0.0.1",
+            port: "27017",
+            name: "momi"
+          }
+        }
+      }
+    }
+  }
 };

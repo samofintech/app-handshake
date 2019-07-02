@@ -32,11 +32,17 @@
     "devebot-plugin"
   ],
   "peerDependencies": {
+    "app-datastore": "^0.3.1",
+    "app-restfetch": "^0.3.0",
+    "app-restfront": "^0.3.1",
     "app-tracelog": "^0.3.0",
     "app-webweaver": "^0.3.0",
     "devebot": "^0.3.0"
   },
   "dependencies": {
+    "app-datastore": "^0.3.1",
+    "app-restfetch": "^0.3.0",
+    "app-restfront": "^0.3.1",
     "app-tracelog": "^0.3.0",
     "app-webweaver": "^0.3.0",
     "devebot": "^0.3.0",
