@@ -1,5 +1,7 @@
 .idea
 .vscode
+.npmrc
 node_modules
 /lib
 /log
+opwire-*

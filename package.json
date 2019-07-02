@@ -1,6 +1,6 @@
 {
   "name": "app-handshake",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Devebot keycloak authentication layerware",
   "license": "MIT",
   "homepage": "https://github.com/apporo/app-handshake.git",
@@ -20,28 +20,40 @@
     "lib/"
   ],
   "scripts": {
-    "build": "npm run clean && babel ./src -d ./lib",
+    "build": "babel ./src -d ./lib",
     "clean": "rm -rf ./lib",
-    "prepublish": "NODE_ENV=production npm run build"
+    "prepublish": "npm run clean && cross-env NODE_ENV=production npm run build",
+    "pretest": "npm run clean && cross-env NODE_ENV=test npm run build",
+    "test": "mocha ./test/{bdd,tdd}/*test.js",
+    "verify": "npm run prepublish && mocha ./test/{bdd,tdd}/*test.js"
   },
   "keywords": [
     "devebot",
     "devebot-plugin"
   ],
   "peerDependencies": {
-    "app-tracelog": "^0.2.2",
-    "app-webweaver": "^0.2.2",
-    "devebot": "^0.2.9"
+    "app-tracelog": "^0.3.0",
+    "app-webweaver": "^0.3.0",
+    "devebot": "^0.3.0"
   },
   "dependencies": {
-    "app-tracelog": "^0.2.2",
-    "app-webweaver": "^0.2.2",
-    "devebot": "^0.2.9",
+    "app-tracelog": "^0.3.0",
+    "app-webweaver": "^0.3.0",
+    "devebot": "^0.3.0",
     "keycloak-connect": "^4.8.1"
   },
   "devDependencies": {
     "babel-cli": "^6.26.0",
     "babel-plugin-minify-mangle-names": "^0.3.0",
-    "babel-preset-env": "^1.6.1"
+    "babel-preset-env": "^1.6.1",
+    "cross-env": "^5.2.0",
+    "devebot-tools": "^0.2.0",
+    "eslint": "^5.16.0",
+    "eslint-config-standard": "^12.0.0",
+    "eslint-plugin-import": "^2.14.0",
+    "eslint-plugin-node": "^7.0.1",
+    "eslint-plugin-promise": "^4.0.1",
+    "eslint-plugin-standard": "^4.0.0",
+    "mocha": "^6.1.4"
   }
 }
