@@ -8,8 +8,6 @@ module.exports = {
     contextPath: contextPath,
   },
   plugins: {
-    appDatastore: {
-    },
     appHandshake: {
       contextPath: contextPath,
     },
@@ -18,6 +16,9 @@ module.exports = {
       apiPath: '',
       apiVersion: '',
       mappingStore: path.join(__dirname, '../lib/mappings/req-to-rpc')
+    },
+    appDatastore: {
+      mappingStore: path.join(__dirname, '../lib/mappings/datastore')
     },
     appTracelog: {
       tracingRequestName: 'requestId',
