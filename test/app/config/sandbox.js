@@ -15,8 +15,8 @@ module.exports = {
     },
     appRestfront: {
       contextPath: contextPath,
-      apiPath: '/api',
-      apiVersion: 'v1',
+      apiPath: '',
+      apiVersion: '',
       mappingStore: path.join(__dirname, '../lib/mappings/req-to-rpc')
     },
     appTracelog: {
