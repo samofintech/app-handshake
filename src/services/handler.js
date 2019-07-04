@@ -24,6 +24,7 @@ function Handler(params = {}) {
       .then(attachServices)
       .then(upsertDevice)
       .then(upsertUser)
+      .then(generateOTP)
       .then(detachServices)
       .then(summarize);
   }
@@ -43,26 +44,31 @@ Handler.referenceHash = {
 
 module.exports = Handler;
 
+function getModelMethod (schemaManager, modelName, methodName) {
+  const model = schemaManager.getModel(modelName);
+  if (!model) {
+    return Promise.reject(new Error(modelName + '_not_available'));
+  }
+  return Promise.resolve(Promise.promisify(model[methodName], { context: model }));
+}
+
 function upsertDevice (packet = {}) {
   const { schemaManager, data } = packet;
-  const deviceModel = schemaManager.getModel('DeviceModel');
-  if (!deviceModel) return Promise.reject(new Error('DeviceModel_not_available'));
-  const findOneAndUpdate = Promise.promisify(deviceModel.findOneAndUpdate, { context: deviceModel });
-  let p = findOneAndUpdate(
-    {
-      'imei': data.device.imei,
-      'platform': data.device.platform
-    },
-    data,
-    {
-      new: true,
-      upsert: true
-    }
-  );
-  p = p.then(function(device) {
+  return getModelMethod(schemaManager, 'DeviceModel', 'findOneAndUpdate').then(function(method) {
+    return method(
+      {
+        'imei': data.device.imei,
+        'platform': data.device.platform
+      },
+      data,
+      {
+        new: true,
+        upsert: true
+      }
+    )
+  }).then(function(device) {
     return lodash.assign(packet, { device });
   });
-  return p;
 }
 
 function upsertUser (packet = {}) {
@@ -71,10 +77,6 @@ function upsertUser (packet = {}) {
   if (!model) {
     return Promise.reject(new Error('UserModel_not_available'));
   }
-  const err = sanitizePhone(data);
-  if (err) {
-    return Promise.reject(err);
-  }
   const findOneAndUpdate = Promise.promisify(model.findOneAndUpdate, { context: model });
   return Promise.resolve().then(function() {
     const err = sanitizePhone(data);
@@ -82,10 +84,11 @@ function upsertUser (packet = {}) {
       return Promise.reject(err);
     }
     const userObject = {
-      agentApp: lodash.assign(data.phone, {
+      agentApp: {
         device: device,
+        phone: data.phone,
         corpId: data.org
-      })
+      }
     }
     return findOneAndUpdate(
       {
@@ -103,6 +106,11 @@ function upsertUser (packet = {}) {
   });
 }
 
+function generateOTP (packet = {}) {
+  const { schemaManager, data, device } = packet;
+  return packet;
+}
+
 function summarize (packet = {}) {
   return { data: packet.user }
 }
@@ -110,6 +118,9 @@ function summarize (packet = {}) {
 function sanitizePhone (data = {}) {
   if (lodash.isEmpty(data.phone)) {
     return new Error('Phone info object must not be null');
+  }
+  if (lodash.isEmpty(data.phone.number)) {
+    return new Error('Phone number must not be null');
   }
   return null;
 }

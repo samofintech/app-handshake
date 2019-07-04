@@ -16,9 +16,11 @@ module.exports = {
     avatar: { type: String },
     agentApp: {
       device: { type: Schema.Types.ObjectId, ref: "DeviceModel" },
-      country: { type: String },
-      countryCode: { type: String },
-      number: { type: String },
+      phone: {
+        country: { type: String },
+        countryCode: { type: String },
+        number: { type: String },
+      }
     },
     // Filtering
     activated: { type: Boolean },

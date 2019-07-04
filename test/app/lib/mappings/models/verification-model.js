@@ -12,11 +12,15 @@ module.exports = {
   descriptor: {
     key: { type: String },
     otp: { type: String },
+    expiredIn: { type: Number },
+    expiredTime: { type: Date },
     user: { type: Schema.Types.ObjectId, ref: "UserModel" },
     device: { type: Schema.Types.ObjectId, ref: "DeviceModel" },
-    country: { type: String },
-    countryCode: { type: String },
-    number: { type: String },
+    phone: {
+      country: { type: String },
+      countryCode: { type: String },
+      number: { type: String },
+    },
     // Filtering
     tags: [String],
     deleted: { type: Boolean, default: false },
