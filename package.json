@@ -47,7 +47,8 @@
     "app-webweaver": "^0.3.0",
     "devebot": "^0.3.0",
     "google-libphonenumber": "^3.2.3",
-    "keycloak-connect": "^4.8.1"
+    "keycloak-connect": "^4.8.1",
+    "moment": "^2.24.0"
   },
   "devDependencies": {
     "babel-cli": "^6.26.0",

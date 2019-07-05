@@ -3,6 +3,8 @@
 const Devebot = require('devebot');
 const Promise = Devebot.require('bluebird');
 const lodash = Devebot.require('lodash');
+const chores = Devebot.require('chores');
+const moment = require('moment');
 const util = require('util');
 const glpn = require('google-libphonenumber');
 const phoneUtil = glpn.PhoneNumberUtil.getInstance();
@@ -52,12 +54,20 @@ function getModelMethod (schemaManager, modelName, methodName) {
   if (!model) {
     return Promise.reject(new Error(modelName + '_not_available'));
   }
+  return model[methodName];
+}
+
+function getModelMethodPromise (schemaManager, modelName, methodName) {
+  const model = schemaManager.getModel(modelName);
+  if (!model) {
+    return Promise.reject(new Error(modelName + '_not_available'));
+  }
   return Promise.resolve(Promise.promisify(model[methodName], { context: model }));
 }
 
 function upsertDevice (packet = {}) {
   const { schemaManager, data } = packet;
-  return getModelMethod(schemaManager, 'DeviceModel', 'findOneAndUpdate').then(function(method) {
+  return getModelMethodPromise(schemaManager, 'DeviceModel', 'findOneAndUpdate').then(function(method) {
     return method(
       {
         'imei': data.device.imei,
@@ -77,12 +87,11 @@ function upsertDevice (packet = {}) {
 function upsertUser (packet = {}) {
   const { schemaManager, data, device } = packet;
   let appType = 'agentApp';
-  return Promise.resolve()
-  .then(function() {
+  return Promise.resolve().then(function() {
     return (appType = mappingAppType(data.appType));
   })
   .then(function() {
-    return getModelMethod(schemaManager, 'UserModel', 'findOneAndUpdate');
+    return getModelMethodPromise(schemaManager, 'UserModel', 'findOneAndUpdate');
   })
   .then(function(method) {
     const err = sanitizePhone(data);
@@ -109,19 +118,66 @@ function upsertUser (packet = {}) {
 }
 
 function generateOTP (packet = {}) {
-  const { schemaManager, data, device } = packet;
-  return packet;
+  const { schemaManager, data, user, device } = packet;
+  let appType = 'agentApp';
+  return Promise.resolve().then(function() {
+    return (appType = mappingAppType(data.appType));
+  })
+  .then(function() {
+    return getModelMethodPromise(schemaManager, 'VerificationModel', 'findOne');
+  })
+  .then(function(method) {
+    const conditions = {
+      phoneNumber: user[appType].phoneNumber
+    };
+    const opts = {
+      sort: { expiredTime: 1 }
+    }
+    return method(conditions, null, opts);
+  })
+  .then(function(verification) {
+    const now = moment();
+    const nowPlus = now.add(5, 'minutes');
+    if (verification) {
+      if (verification.expiredTime) {
+        const oldExpiredTime = new moment(verification.expiredTime);
+        if (nowPlus.isAfter(oldExpiredTime)) {
+          verification = null;
+        }
+      } else {
+        verification = null;
+      }
+    }
+    if (verification) {
+      return verification;
+    } else {
+      const verificationCreate = getModelMethodPromise(schemaManager, 'VerificationModel', 'create');
+      return verificationCreate.then(function(method) {
+        return method({
+          key: chores.getUUID(),
+          otp: chores.getUUID(),
+          expiredIn: 15 * 60,
+          expiredTime: now.add(15, 'minutes').toDate(),
+          phoneNumber: user[appType].phoneNumber,
+          user: user._id,
+          device: device._id
+        }, null);
+      })
+    }
+  })
+  .then(function(verification) {
+    return lodash.assign(packet, { verification });
+  })
 }
 
 function summarize (packet = {}) {
-  return { data: packet.user }
+  return { data: packet.verification }
 }
 
 function mappingAppType(appType) {
   if (['sales', 'agent', 'agent-app', 'agentApp'].indexOf(appType) >= 0) {
     return 'agentApp';
   }
-  // return 'agentApp';
   return Promise.reject(new Error(util.format('Unsupported appType [%s]', appType)));
 }
 
