@@ -2,6 +2,7 @@
 
 const Devebot = require('devebot');
 const Promise = Devebot.require('bluebird');
+const chores = Devebot.require('chores');
 const lodash = Devebot.require('lodash');
 const logolite = Devebot.require('logolite');
 const genKey = logolite.LogConfig.getLogID;
@@ -15,12 +16,15 @@ const otpDefaultOpts = { alphabets: false, upperCase: false, specialChars: false
 function Handler(params = {}) {
   const L = params.loggingFactory.getLogger();
   const T = params.loggingFactory.getTracer();
-  const schemaManager = params.schemaManager;
+  const packageName = params.packageName || 'app-handshake';
+  const blockRef = chores.getBlockRef(__filename, packageName);
+
+  const { sandboxRegistry, schemaManager } = params;
 
   const config = lodash.get(params, ['sandboxConfig'], {});
   config.expiredIn = config.expiredIn || 15 * 60;
   config.expiredMargin = config.expiredMargin || 2 * 60;
-  config.otpSize = config.otpSize || 4;
+  config.otpSize = config.otpSize || 7;
   config.defaultCountryCode = config.defaultCountryCode || 'VN';
   config.selectedFields = config.selectedFields || {
     key: 1, expiredIn: 1, expiredTime: 1, phoneNumber: 0,
@@ -32,7 +36,34 @@ function Handler(params = {}) {
     }
   })
 
-  const ctx = { L, T, config, schemaManager };
+  let serviceResolver = config.serviceResolver || 'app-restfetch/resolver';
+  let serviceResolverAvailable = true;
+
+  const lookupMethod = function (serviceName, methodName) {
+    let ref = {};
+    if (serviceResolverAvailable) {
+      let resolver = sandboxRegistry.lookupService(serviceResolver);
+      if (resolver) {
+        ref.proxied = true;
+        ref.service = resolver.lookupService(serviceName);
+        if (ref.service) {
+          ref.method = ref.service[methodName];
+        }
+      } else {
+        serviceResolverAvailable = false;
+      }
+    }
+    if (!ref.method) {
+      ref.proxied = false;
+      ref.service = sandboxRegistry.lookupService(serviceName);
+      if (ref.service) {
+        ref.method = ref.service[methodName];
+      }
+    }
+    return ref;
+  }
+
+  const ctx = { L, T, packageName, config, lookupMethod, schemaManager };
 
   function attachServices (packet) {
     return lodash.assign(packet, ctx);
@@ -48,6 +79,7 @@ function Handler(params = {}) {
       .then(upsertDevice)
       .then(upsertUser)
       .then(generateOTP)
+      .then(sendOTP)
       .then(summarize)
       .then(detachServices);
   }
@@ -62,6 +94,7 @@ function Handler(params = {}) {
 };
 
 Handler.referenceHash = {
+  sandboxRegistry: 'devebot/sandboxRegistry',
   schemaManager: 'app-datastore/schemaManager'
 };
 
@@ -190,6 +223,19 @@ function generateOTP (packet = {}) {
   .then(function(verification) {
     return lodash.assign(packet, { verification });
   })
+}
+
+function sendOTP (packet = {}) {
+  const { packageName, config, lookupMethod, verification } = packet;
+  const messenderService = [packageName, 'messender'].join(chores.getSeparator());
+  const ref = lookupMethod(messenderService, 'sendSMS');
+  if (ref.service && ref.method) {
+    ref.method({
+      text: util.format("Please use the code - %s to verify your phone", verification.otp),
+      phoneNumber: verification.phoneNumber,
+    });
+  }
+  return Promise.resolve(packet);
 }
 
 function summarize (packet = {}) {
