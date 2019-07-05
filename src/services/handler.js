@@ -3,6 +3,7 @@
 const Devebot = require('devebot');
 const Promise = Devebot.require('bluebird');
 const lodash = Devebot.require('lodash');
+const util = require('util');
 const glpn = require('google-libphonenumber');
 const phoneUtil = glpn.PhoneNumberUtil.getInstance();
 
@@ -75,29 +76,32 @@ function upsertDevice (packet = {}) {
 
 function upsertUser (packet = {}) {
   const { schemaManager, data, device } = packet;
-  return getModelMethod(schemaManager, 'UserModel', 'findOneAndUpdate').then(function(method) {
+  let appType = 'agentApp';
+  return Promise.resolve()
+  .then(function() {
+    return (appType = mappingAppType(data.appType));
+  })
+  .then(function() {
+    return getModelMethod(schemaManager, 'UserModel', 'findOneAndUpdate');
+  })
+  .then(function(method) {
     const err = sanitizePhone(data);
     if (err) {
       return Promise.reject(err);
     }
-    const userObject = {
-      agentApp: {
-        device: device,
-        phoneNumber: data.phoneNumber,
-        phone: data.phone,
-        corpId: data.org
-      }
+
+    const conditions = {};
+    conditions[[appType, "phoneNumber"].join(".")] = data.phoneNumber;
+
+    const userObject = {};
+    userObject[appType] = {
+      device: device,
+      phoneNumber: data.phoneNumber,
+      phone: data.phone,
+      corpId: data.org
     }
-    return method(
-      {
-        "agentApp.phoneNumber": data.phoneNumber
-      },
-      userObject,
-      {
-        new: true,
-        upsert: true
-      }
-    )
+
+    return method(conditions, userObject, { new: true, upsert: true });
   })
   .then(function(user) {
     return lodash.assign(packet, { user });
@@ -111,6 +115,14 @@ function generateOTP (packet = {}) {
 
 function summarize (packet = {}) {
   return { data: packet.user }
+}
+
+function mappingAppType(appType) {
+  if (['sales', 'agent', 'agent-app', 'agentApp'].indexOf(appType) >= 0) {
+    return 'agentApp';
+  }
+  // return 'agentApp';
+  return Promise.reject(new Error(util.format('Unsupported appType [%s]', appType)));
 }
 
 function sanitizePhone (data = {}) {

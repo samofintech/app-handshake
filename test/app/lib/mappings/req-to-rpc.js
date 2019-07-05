@@ -42,7 +42,10 @@ var mappings = [
     serviceName: 'app-handshake/handler',
     methodName: 'authenticate',
     transformError: function(err, req) {
-      return err.message;
+      return {
+        code: 500,
+        text: err.message
+      };
     },
     transformResponse: function(result, req) {
       const payload = {
