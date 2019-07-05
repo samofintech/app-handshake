@@ -131,7 +131,7 @@ function generateOTP (packet = {}) {
       phoneNumber: user[appType].phoneNumber
     };
     const opts = {
-      sort: { expiredTime: 1 }
+      sort: { expiredTime: -1 }
     }
     return method(conditions, null, opts);
   })
@@ -153,7 +153,7 @@ function generateOTP (packet = {}) {
     } else {
       const verificationCreate = getModelMethodPromise(schemaManager, 'VerificationModel', 'create');
       return verificationCreate.then(function(method) {
-        return method({
+        return method([{
           key: chores.getUUID(),
           otp: chores.getUUID(),
           expiredIn: 15 * 60,
@@ -161,7 +161,7 @@ function generateOTP (packet = {}) {
           phoneNumber: user[appType].phoneNumber,
           user: user._id,
           device: device._id
-        }, null);
+        }], {});
       })
     }
   })
