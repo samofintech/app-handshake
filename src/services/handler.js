@@ -3,7 +3,6 @@
 const Devebot = require('devebot');
 const Promise = Devebot.require('bluebird');
 const lodash = Devebot.require('lodash');
-const chores = Devebot.require('chores');
 const logolite = Devebot.require('logolite');
 const genKey = logolite.LogConfig.getLogID;
 const moment = require('moment');
@@ -17,7 +16,22 @@ function Handler(params = {}) {
   const L = params.loggingFactory.getLogger();
   const T = params.loggingFactory.getTracer();
   const schemaManager = params.schemaManager;
+
   const config = lodash.get(params, ['sandboxConfig'], {});
+  config.expiredIn = config.expiredIn || 15 * 60;
+  config.expiredMargin = config.expiredMargin || 2 * 60;
+  config.otpSize = config.otpSize || 4;
+  config.defaultCountryCode = config.defaultCountryCode || 'VN';
+  config.selectedFields = config.selectedFields || {
+    key: 1, expiredIn: 1, expiredTime: 1, phoneNumber: 0,
+  }
+  config.projection = [];
+  lodash.forOwn(config.selectedFields, function(flag, fieldName) {
+    if (flag) {
+      config.projection.push(fieldName);
+    }
+  })
+
   const ctx = { L, T, config, schemaManager };
 
   function attachServices (packet) {
@@ -34,8 +48,8 @@ function Handler(params = {}) {
       .then(upsertDevice)
       .then(upsertUser)
       .then(generateOTP)
-      .then(detachServices)
-      .then(summarize);
+      .then(summarize)
+      .then(detachServices);
   }
 
   this.verificationCode = function (packet) {
@@ -53,7 +67,7 @@ Handler.referenceHash = {
 
 module.exports = Handler;
 
-function getModelMethod (schemaManager, modelName, methodName) {
+function getModelMethodGeneral (schemaManager, modelName, methodName) {
   const model = schemaManager.getModel(modelName);
   if (!model) {
     return Promise.reject(new Error(modelName + '_not_available'));
@@ -89,8 +103,8 @@ function upsertDevice (packet = {}) {
 }
 
 function upsertUser (packet = {}) {
-  const { schemaManager, data, device } = packet;
-  let appType = 'agentApp';
+  const { schemaManager, config, data, device } = packet;
+  let appType = 'unknown';
   return Promise.resolve().then(function() {
     return (appType = mappingAppType(data.appType));
   })
@@ -98,7 +112,7 @@ function upsertUser (packet = {}) {
     return getModelMethodPromise(schemaManager, 'UserModel', 'findOneAndUpdate');
   })
   .then(function(method) {
-    const err = sanitizePhone(data);
+    const err = sanitizePhone(data, config);
     if (err) {
       return Promise.reject(err);
     }
@@ -122,8 +136,8 @@ function upsertUser (packet = {}) {
 }
 
 function generateOTP (packet = {}) {
-  const { schemaManager, data, user, device } = packet;
-  let appType = 'agentApp';
+  const { schemaManager, config, data, user, device } = packet;
+  let appType = 'unknown';
   return Promise.resolve().then(function() {
     return (appType = mappingAppType(data.appType));
   })
@@ -141,7 +155,7 @@ function generateOTP (packet = {}) {
   })
   .then(function(verification) {
     const now = moment();
-    const nowPlus = now.add(5, 'minutes');
+    const nowPlus = now.add(config.expiredMargin, 'seconds');
     if (verification) {
       if (verification.expiredTime) {
         const oldExpiredTime = new moment(verification.expiredTime);
@@ -159,9 +173,9 @@ function generateOTP (packet = {}) {
       return verificationCreate.then(function(method) {
         const obj = {
           key: genKey(),
-          otp: otp.generate(4, otpDefaultOpts),
-          expiredIn: 15 * 60,
-          expiredTime: now.add(15, 'minutes').toDate(),
+          otp: otp.generate(config.otpSize, otpDefaultOpts),
+          expiredIn: config.expiredIn,
+          expiredTime: now.add(config.expiredIn, 'seconds').toDate(),
           phoneNumber: user[appType].phoneNumber,
           user: user._id,
           device: device._id
@@ -179,8 +193,9 @@ function generateOTP (packet = {}) {
 }
 
 function summarize (packet = {}) {
+  const { config, verification } = packet;
   return {
-    data: lodash.pick(packet.verification, ["key", "expiredIn", "expiredTime"])
+    data: lodash.pick(verification, config.projection)
   }
 }
 
@@ -191,7 +206,8 @@ function mappingAppType(appType) {
   return Promise.reject(new Error(util.format('Unsupported appType [%s]', appType)));
 }
 
-function sanitizePhone (data = {}) {
+function sanitizePhone (data = {}, config = {}) {
+  config.defaultCountryCode = config.defaultCountryCode || 'US';
   if (lodash.isEmpty(data.phoneNumber) && lodash.isEmpty(data.phone)) {
     return new Error('Phone info object must not be null');
   }
@@ -207,17 +223,17 @@ function sanitizePhone (data = {}) {
       data.phoneNumber = derivativeNumber;
     }
   } else {
-    data.phone = parsePhoneNumber(data.phoneNumber);
+    data.phone = parsePhoneNumber(data.phoneNumber, config.defaultCountryCode);
   }
   // validate phone & phoneNumber
-  if (!isValidPhoneNumber(data.phoneNumber)) {
+  if (!isValidPhoneNumber(data.phoneNumber, config.defaultCountryCode)) {
     return new Error(util.format('Invalid phone number [%s]', data.phoneNumber));
   }
   return null;
 }
 
-function parsePhoneNumber(phoneString) {
-  const number = phoneUtil.parseAndKeepRawInput(phoneString, 'VN');
+function parsePhoneNumber(phoneString, defaultCountryCode) {
+  const number = phoneUtil.parseAndKeepRawInput(phoneString, defaultCountryCode);
   return {
     country: phoneUtil.getRegionCodeForNumber(number),
     countryCode: '+' + number.getCountryCode(),
@@ -226,6 +242,6 @@ function parsePhoneNumber(phoneString) {
   }
 }
 
-function isValidPhoneNumber(phoneString) {
-  return phoneUtil.isValidNumber(phoneUtil.parse(phoneString, 'VN'));
+function isValidPhoneNumber(phoneString, defaultCountryCode) {
+  return phoneUtil.isValidNumber(phoneUtil.parse(phoneString, defaultCountryCode));
 }
