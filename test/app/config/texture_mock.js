@@ -11,7 +11,7 @@ module.exports = {
                 mappings: {
                   "ok": {
                     selector: function(data = {}, opts = {}) {
-                      return opts.mockingId === 'ok';
+                      return opts.mockSuite === 'ok';
                     },
                     generate: function(data = {}, opts = {}) {
                       return {
@@ -41,7 +41,7 @@ module.exports = {
                 mappings: {
                   "ok": {
                     selector: function(data = {}, opts = {}) {
-                      return opts.mockingId === 'ok';
+                      return opts.mockSuite === 'ok';
                     },
                     generate: function(data = {}, opts = {}) {
                       return {
@@ -72,7 +72,7 @@ module.exports = {
                   },
                   "failed": {
                     selector: function(data = {}, opts = {}) {
-                      return opts.mockingId === 'failed';
+                      return opts.mockSuite === 'failed';
                     },
                     generate: function(data = {}, opts = {}) {
                       return {
@@ -103,7 +103,7 @@ module.exports = {
                 mappings: {
                   "ok": {
                     selector: function(data = {}, opts = {}) {
-                      return opts.mockingId === 'ok';
+                      return opts.mockSuite === 'ok';
                     },
                     generate: function(data = {}, opts = {}) {
                       return {
@@ -121,7 +121,7 @@ module.exports = {
                   },
                   "failed": {
                     selector: function(data = {}, opts = {}) {
-                      return opts.mockingId === 'failed';
+                      return opts.mockSuite === 'failed';
                     },
                     generate: function(data = {}, opts = {}) {
                       return {

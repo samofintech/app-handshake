@@ -12,10 +12,12 @@ module.exports = {
   descriptor: {
     firstName: { type: String },
     lastName: { type: String },
+    email: { type: String },
     gender: { type: String },
     avatar: { type: String },
     agentApp: {
       device: { type: Schema.Types.ObjectId, ref: "DeviceModel" },
+      phoneNumber: { type: String },
       phone: {
         country: { type: String },
         countryCode: { type: String },

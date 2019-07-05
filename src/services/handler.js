@@ -73,12 +73,7 @@ function upsertDevice (packet = {}) {
 
 function upsertUser (packet = {}) {
   const { schemaManager, data, device } = packet;
-  const model = schemaManager.getModel('UserModel');
-  if (!model) {
-    return Promise.reject(new Error('UserModel_not_available'));
-  }
-  const findOneAndUpdate = Promise.promisify(model.findOneAndUpdate, { context: model });
-  return Promise.resolve().then(function() {
+  return getModelMethod(schemaManager, 'DeviceModel', 'findOneAndUpdate').then(function(method) {
     const err = sanitizePhone(data);
     if (err) {
       return Promise.reject(err);
@@ -90,7 +85,7 @@ function upsertUser (packet = {}) {
         corpId: data.org
       }
     }
-    return findOneAndUpdate(
+    return method(
       {
         "agentApp.device": device._id
       },
