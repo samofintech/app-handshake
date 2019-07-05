@@ -4,10 +4,14 @@ const Devebot = require('devebot');
 const Promise = Devebot.require('bluebird');
 const lodash = Devebot.require('lodash');
 const chores = Devebot.require('chores');
+const logolite = Devebot.require('logolite');
+const genKey = logolite.LogConfig.getLogID;
 const moment = require('moment');
 const util = require('util');
 const glpn = require('google-libphonenumber');
 const phoneUtil = glpn.PhoneNumberUtil.getInstance();
+const otp = require('../utils/otp-generator');
+const otpDefaultOpts = { alphabets: false, upperCase: false, specialChars: false };
 
 function Handler(params = {}) {
   const L = params.loggingFactory.getLogger();
@@ -153,16 +157,20 @@ function generateOTP (packet = {}) {
     } else {
       const verificationCreate = getModelMethodPromise(schemaManager, 'VerificationModel', 'create');
       return verificationCreate.then(function(method) {
-        return method([{
-          key: chores.getUUID(),
-          otp: chores.getUUID(),
+        const obj = {
+          key: genKey(),
+          otp: otp.generate(4, otpDefaultOpts),
           expiredIn: 15 * 60,
           expiredTime: now.add(15, 'minutes').toDate(),
           phoneNumber: user[appType].phoneNumber,
           user: user._id,
           device: device._id
-        }], {});
-      })
+        };
+        const opts = {};
+        return method([obj], opts).spread(function(otp) {
+          return otp;
+        });
+      });
     }
   })
   .then(function(verification) {
@@ -171,7 +179,9 @@ function generateOTP (packet = {}) {
 }
 
 function summarize (packet = {}) {
-  return { data: packet.verification }
+  return {
+    data: lodash.pick(packet.verification, ["key", "expiredIn", "expiredTime"])
+  }
 }
 
 function mappingAppType(appType) {
