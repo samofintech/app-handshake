@@ -46,6 +46,7 @@
     "app-tracelog": "^0.3.0",
     "app-webweaver": "^0.3.0",
     "devebot": "^0.3.0",
+    "google-libphonenumber": "^3.2.3",
     "keycloak-connect": "^4.8.1"
   },
   "devDependencies": {

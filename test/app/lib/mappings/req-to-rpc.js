@@ -25,6 +25,7 @@ var mappings = [
             "imei": "990000862471854",
             "platform": "iOS"
           },
+          "phoneNumber": "+12055555555",
           "phone": {
             "country": "US",
             "countryCode": "+1",
@@ -41,7 +42,7 @@ var mappings = [
     serviceName: 'app-handshake/handler',
     methodName: 'authenticate',
     transformError: function(err, req) {
-      return err;
+      return err.message;
     },
     transformResponse: function(result, req) {
       const payload = {

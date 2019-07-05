@@ -3,13 +3,15 @@
 const Devebot = require('devebot');
 const Promise = Devebot.require('bluebird');
 const lodash = Devebot.require('lodash');
+const glpn = require('google-libphonenumber');
+const phoneUtil = glpn.PhoneNumberUtil.getInstance();
 
 function Handler(params = {}) {
   const L = params.loggingFactory.getLogger();
   const T = params.loggingFactory.getTracer();
   const schemaManager = params.schemaManager;
-  const ctx = { L, T, schemaManager };
-  const pluginCfg = lodash.get(params, ['sandboxConfig'], {});
+  const config = lodash.get(params, ['sandboxConfig'], {});
+  const ctx = { L, T, config, schemaManager };
 
   function attachServices (packet) {
     return lodash.assign(packet, ctx);
@@ -73,7 +75,7 @@ function upsertDevice (packet = {}) {
 
 function upsertUser (packet = {}) {
   const { schemaManager, data, device } = packet;
-  return getModelMethod(schemaManager, 'DeviceModel', 'findOneAndUpdate').then(function(method) {
+  return getModelMethod(schemaManager, 'UserModel', 'findOneAndUpdate').then(function(method) {
     const err = sanitizePhone(data);
     if (err) {
       return Promise.reject(err);
@@ -81,13 +83,14 @@ function upsertUser (packet = {}) {
     const userObject = {
       agentApp: {
         device: device,
+        phoneNumber: data.phoneNumber,
         phone: data.phone,
         corpId: data.org
       }
     }
     return method(
       {
-        "agentApp.device": device._id
+        "agentApp.phoneNumber": data.phoneNumber
       },
       userObject,
       {
@@ -111,11 +114,40 @@ function summarize (packet = {}) {
 }
 
 function sanitizePhone (data = {}) {
-  if (lodash.isEmpty(data.phone)) {
+  if (lodash.isEmpty(data.phoneNumber) && lodash.isEmpty(data.phone)) {
     return new Error('Phone info object must not be null');
   }
-  if (lodash.isEmpty(data.phone.number)) {
-    return new Error('Phone number must not be null');
+  // sync between data.phone and data.phoneNumber
+  if (data.phone) {
+    // build the derived phoneNumber
+    let derivativeNumber = data.phone.countryCode + data.phone.number;
+    if (data.phoneNumber) {
+      if (data.phoneNumber !== derivativeNumber) {
+        return new Error('Mismatched phone number');
+      }
+    } else {
+      data.phoneNumber = derivativeNumber;
+    }
+  } else {
+    data.phone = parsePhoneNumber(data.phoneNumber);
+  }
+  // validate phone & phoneNumber
+  if (!isValidPhoneNumber(data.phoneNumber)) {
+    return new Error(util.format('Invalid phone number [%s]', data.phoneNumber));
   }
   return null;
+}
+
+function parsePhoneNumber(phoneString) {
+  const number = phoneUtil.parseAndKeepRawInput(phoneString, 'VN');
+  return {
+    country: phoneUtil.getRegionCodeForNumber(number),
+    countryCode: '+' + number.getCountryCode(),
+    number: number.getNationalNumber(),
+    rawInput: number.getRawInput(),
+  }
+}
+
+function isValidPhoneNumber(phoneString) {
+  return phoneUtil.isValidNumber(phoneUtil.parse(phoneString, 'VN'));
 }
