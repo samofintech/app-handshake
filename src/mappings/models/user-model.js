@@ -1,7 +1,7 @@
 'use strict';
 
-var mongoose = require('app-datastore').require('mongoose');
-var Schema = mongoose.Schema;
+const mongoose = require('app-datastore').require('mongoose');
+const Schema = mongoose.Schema;
 
 /**
  *
