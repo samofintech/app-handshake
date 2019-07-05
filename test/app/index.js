@@ -18,11 +18,10 @@ if (require.main === module) {
       process.exit(0);
     });
   }
-  app.server.start().finally(function() {
-    process.on('SIGINT', stop);
-    process.on('SIGQUIT', stop);
-    process.on('SIGTERM', stop);
-  });
+  process.on('SIGINT', stop);
+  process.on('SIGQUIT', stop);
+  process.on('SIGTERM', stop);
+  app.server.start();
 }
 
 module.exports = app;

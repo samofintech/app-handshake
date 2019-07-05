@@ -1,6 +1,5 @@
 'use strict';
 
-var path = require('path');
 var contextPath = '/handshake';
 
 module.exports = {
@@ -10,6 +9,9 @@ module.exports = {
   plugins: {
     appHandshake: {
       contextPath: contextPath,
+      expiredIn: 15 * 60,
+      expiredMargin: 5 * 60,
+      otpSize: 4,
     },
     appRestfront: {
       contextPath: contextPath,
