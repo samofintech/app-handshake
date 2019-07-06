@@ -39,6 +39,7 @@ function Handler(params = {}) {
 
   const serviceResolver = config.serviceResolver || 'app-restfetch/resolver';
   const serviceSelector = new ServiceSelector({ serviceResolver, sandboxRegistry });
+  // const serviceSelector = chores.newServiceSelector({ serviceResolver, sandboxRegistry });
 
   const ctx = { L, T, packageName, config, schemaManager, serviceSelector };
 
@@ -98,7 +99,8 @@ function getModelMethodPromise (schemaManager, modelName, methodName) {
 
 function upsertDevice (packet = {}) {
   const { schemaManager, data } = packet;
-  return getModelMethodPromise(schemaManager, 'DeviceModel', 'findOneAndUpdate').then(function(method) {
+  return getModelMethodPromise(schemaManager, 'DeviceModel', 'findOneAndUpdate')
+  .then(function(method) {
     return method(
       {
         'imei': data.device.imei,
@@ -110,7 +112,8 @@ function upsertDevice (packet = {}) {
         upsert: true
       }
     )
-  }).then(function(device) {
+  })
+  .then(function(device) {
     return lodash.assign(packet, { device });
   });
 }
@@ -159,6 +162,7 @@ function generateOTP (packet = {}) {
   })
   .then(function(method) {
     const conditions = {
+      appType: appType,
       phoneNumber: user[appType].phoneNumber
     };
     const opts = {
@@ -189,9 +193,10 @@ function generateOTP (packet = {}) {
           otp: otp.generate(config.otpSize, otpDefaultOpts),
           expiredIn: config.expiredIn,
           expiredTime: now.add(config.expiredIn, 'seconds').toDate(),
-          phoneNumber: user[appType].phoneNumber,
           user: user._id,
-          device: device._id
+          device: device._id,
+          appType: appType,
+          phoneNumber: user[appType].phoneNumber
         };
         const opts = {};
         return method([obj], opts).spread(function(otp) {
@@ -257,8 +262,29 @@ function verifyOTP (packet = {}) {
     verification.verified = true;
     return verification.save();
   })
-  .then(function(newVerification) {
-    lodash.assign(packet, { verification: newVerification })
+  .then(function(verification) {
+    if (!verification) {
+      return Promise.reject(new Error('could not save verification object'));
+    }
+    return getModelMethodPromise(schemaManager, 'UserModel', 'findById')
+    .then(function(method) {
+      return method(verification.user, null, null);
+    })
+    .then(function(user) {
+      if (!user) {
+        return Promise.reject(new Error(util.format(
+          'the user#%s not found', verification.user)));
+      }
+      if (!user[verification.appType]) {
+        return Promise.reject(new Error(util.format(
+          'the user#%s[%s] not found', verification.user, verification.appType)));
+      }
+      user[verification.appType].verified = true;
+      return [ verification, user.save() ];
+    })
+  })
+  .spread(function(verification, user) {
+    return lodash.assign(packet, {data: { verification, user } })
   });
 }
 

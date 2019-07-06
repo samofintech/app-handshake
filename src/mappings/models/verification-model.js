@@ -16,8 +16,8 @@ module.exports = {
     expiredTime: { type: Date },
     user: { type: Schema.Types.ObjectId, ref: "UserModel" },
     device: { type: Schema.Types.ObjectId, ref: "DeviceModel" },
+    appType: { type: String },
     phoneNumber: { type: String },
-    email: { type: String },
     verified: { type: Boolean, default: false },
     // Filtering
     tags: [String],
