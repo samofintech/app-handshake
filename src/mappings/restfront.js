@@ -60,6 +60,12 @@ var mappings = [
   {
     path: '/auth/verification-code',
     method: 'POST',
+    input: {
+      example: {
+        key: "UqR32OQ3S4arU3KalHbz9A",
+        otp: "1543"
+      }
+    },
     transformRequest: function(req) {
       return {
         data: req.body

@@ -1,5 +1,6 @@
 'use strict';
 
+const assert = require('assert');
 const Devebot = require('devebot');
 const Promise = Devebot.require('bluebird');
 const chores = Devebot.require('chores');
@@ -36,34 +37,10 @@ function Handler(params = {}) {
     }
   })
 
-  let serviceResolver = config.serviceResolver || 'app-restfetch/resolver';
-  let serviceResolverAvailable = true;
+  const serviceResolver = config.serviceResolver || 'app-restfetch/resolver';
+  const serviceSelector = new ServiceSelector({ serviceResolver, sandboxRegistry });
 
-  const lookupMethod = function (serviceName, methodName) {
-    let ref = {};
-    if (serviceResolverAvailable) {
-      let resolver = sandboxRegistry.lookupService(serviceResolver);
-      if (resolver) {
-        ref.proxied = true;
-        ref.service = resolver.lookupService(serviceName);
-        if (ref.service) {
-          ref.method = ref.service[methodName];
-        }
-      } else {
-        serviceResolverAvailable = false;
-      }
-    }
-    if (!ref.method) {
-      ref.proxied = false;
-      ref.service = sandboxRegistry.lookupService(serviceName);
-      if (ref.service) {
-        ref.method = ref.service[methodName];
-      }
-    }
-    return ref;
-  }
-
-  const ctx = { L, T, packageName, config, lookupMethod, schemaManager };
+  const ctx = { L, T, packageName, config, schemaManager, serviceSelector };
 
   function attachServices (packet) {
     return lodash.assign(packet, ctx);
@@ -85,7 +62,10 @@ function Handler(params = {}) {
   }
 
   this.verificationCode = function (packet) {
-    return Promise.resolve(packet);
+    return Promise.resolve(packet)
+      .then(attachServices)
+      .then(verifyOTP)
+      .then(detachServices);
   }
 
   this.refreshToken = function (packet) {
@@ -226,9 +206,9 @@ function generateOTP (packet = {}) {
 }
 
 function sendOTP (packet = {}) {
-  const { packageName, config, lookupMethod, verification } = packet;
+  const { packageName, config, serviceSelector, verification } = packet;
   const messenderService = [packageName, 'messender'].join(chores.getSeparator());
-  const ref = lookupMethod(messenderService, 'sendSMS');
+  const ref = serviceSelector.lookupMethod(messenderService, 'sendSMS');
   if (ref.service && ref.method) {
     ref.method({
       text: util.format("Please use the code - %s to verify your phone", verification.otp),
@@ -243,6 +223,43 @@ function summarize (packet = {}) {
   return {
     data: lodash.pick(verification, config.projection)
   }
+}
+
+function verifyOTP (packet = {}) {
+  const { schemaManager, config, data } = packet;
+  return Promise.resolve().then(function() {
+    return getModelMethodPromise(schemaManager, 'VerificationModel', 'findOne');
+  })
+  .then(function(method) {
+    const conditions = {
+      key: data.key
+    };
+    const opts = {}
+    return method(conditions, null, opts);
+  })
+  .then(function(verification) {
+    if (!verification) {
+      return Promise.reject(new Error('key not found'));
+    }
+    if (!verification.expiredTime) {
+      return Promise.reject(new Error('invalid expiredTime'));
+    }
+    const now = moment();
+    const expiredTime = new moment(verification.expiredTime);
+    if (now.isAfter(expiredTime)) {
+      return Promise.reject(new Error('OTP has been expired'));
+    }
+    // compare OTP
+    if (data.otp != verification.otp) {
+      return Promise.reject(new Error('incorrect OTP code'));
+    }
+    // ok
+    verification.verified = true;
+    return verification.save();
+  })
+  .then(function(newVerification) {
+    lodash.assign(packet, { verification: newVerification })
+  });
 }
 
 function mappingAppType(appType) {
@@ -290,4 +307,38 @@ function parsePhoneNumber(phoneString, defaultCountryCode) {
 
 function isValidPhoneNumber(phoneString, defaultCountryCode) {
   return phoneUtil.isValidNumber(phoneUtil.parse(phoneString, defaultCountryCode));
+}
+
+function ServiceSelector(kwargs = {}) {
+  const { serviceResolver, sandboxRegistry } = kwargs;
+
+  assert.ok(this.constructor === ServiceSelector);
+  assert.ok(serviceResolver && lodash.isString(serviceResolver));
+  assert.ok(sandboxRegistry && lodash.isObject(sandboxRegistry));
+
+  let serviceResolverAvailable = true;
+
+  this.lookupMethod = function (serviceName, methodName) {
+    let ref = {};
+    if (serviceResolverAvailable) {
+      let resolver = sandboxRegistry.lookupService(serviceResolver);
+      if (resolver) {
+        ref.proxied = true;
+        ref.service = resolver.lookupService(serviceName);
+        if (ref.service) {
+          ref.method = ref.service[methodName];
+        }
+      } else {
+        serviceResolverAvailable = false;
+      }
+    }
+    if (!ref.method) {
+      ref.proxied = false;
+      ref.service = sandboxRegistry.lookupService(serviceName);
+      if (ref.service) {
+        ref.method = ref.service[methodName];
+      }
+    }
+    return ref;
+  }
 }

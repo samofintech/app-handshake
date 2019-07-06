@@ -16,6 +16,7 @@ module.exports = {
     gender: { type: String },
     avatar: { type: String },
     agentApp: {
+      verified: { type: Boolean, default: false },
       device: { type: Schema.Types.ObjectId, ref: "DeviceModel" },
       phoneNumber: { type: String },
       phone: {
