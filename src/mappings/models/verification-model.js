@@ -18,6 +18,7 @@ module.exports = {
     device: { type: Schema.Types.ObjectId, ref: "DeviceModel" },
     phoneNumber: { type: String },
     email: { type: String },
+    verified: { type: Boolean, default: false },
     // Filtering
     tags: [String],
     deleted: { type: Boolean, default: false },
