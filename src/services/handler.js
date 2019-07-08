@@ -20,7 +20,7 @@ function Handler(params = {}) {
   const packageName = params.packageName || 'app-handshake';
   const blockRef = chores.getBlockRef(__filename, packageName);
 
-  const { sandboxRegistry, schemaManager } = params;
+  const { oauthApi, sandboxRegistry, schemaManager } = params;
 
   const config = lodash.get(params, ['sandboxConfig'], {});
   config.expiredIn = config.expiredIn || 15 * 60;
@@ -41,7 +41,7 @@ function Handler(params = {}) {
   const serviceSelector = new ServiceSelector({ serviceResolver, sandboxRegistry });
   // const serviceSelector = chores.newServiceSelector({ serviceResolver, sandboxRegistry });
 
-  const ctx = { L, T, packageName, config, schemaManager, serviceSelector };
+  const ctx = { L, T, packageName, config, schemaManager, serviceSelector, oauthApi };
 
   function attachServices (packet) {
     return lodash.assign(packet, ctx);
@@ -75,6 +75,7 @@ function Handler(params = {}) {
 };
 
 Handler.referenceHash = {
+  oauthApi: 'oauthApi',
   sandboxRegistry: 'devebot/sandboxRegistry',
   schemaManager: 'app-datastore/schemaManager'
 };
@@ -231,7 +232,7 @@ function summarize (packet = {}) {
 }
 
 function verifyOTP (packet = {}) {
-  const { schemaManager, config, data } = packet;
+  const { schemaManager, oauthApi, config, data } = packet;
   return Promise.resolve().then(function() {
     return getModelMethodPromise(schemaManager, 'VerificationModel', 'findOne');
   })
@@ -280,11 +281,18 @@ function verifyOTP (packet = {}) {
           'the user#%s[%s] not found', verification.user, verification.appType)));
       }
       user[verification.appType].verified = true;
+      user[verification.appType].refreshToken = genKey();
       return [ verification, user.save() ];
     })
   })
   .spread(function(verification, user) {
-    return lodash.assign(packet, {data: { verification, user } })
+    const auth = {
+      token_type: "Bearer",
+      access_token: oauthApi.createAppAccessToken({ user, verification }),
+      refresh_token: user[verification.appType].refreshToken,
+      expires_in: verification.expiredIn,
+    }
+    return lodash.assign(packet, {data: { auth, user } })
   });
 }
 

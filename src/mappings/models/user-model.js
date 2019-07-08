@@ -23,7 +23,8 @@ module.exports = {
         country: { type: String },
         countryCode: { type: String },
         number: { type: String },
-      }
+      },
+      refreshToken: { type: String }
     },
     // Filtering
     activated: { type: Boolean },

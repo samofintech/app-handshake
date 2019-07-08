@@ -12,6 +12,7 @@ module.exports = {
       expiredIn: 15 * 60,
       expiredMargin: 5 * 60,
       otpSize: 4,
+      secretkey: 'dobietday',
     },
     appRestfront: {
       contextPath: contextPath,
