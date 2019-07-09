@@ -26,6 +26,7 @@ function Handler(params = {}) {
   config.expiredIn = config.expiredIn || 15 * 60;
   config.expiredMargin = config.expiredMargin || 2 * 60;
   config.otpSize = config.otpSize || 7;
+  config.tokenExpiredIn = config.tokenExpiredIn || 15 * 60;
   config.defaultCountryCode = config.defaultCountryCode || 'VN';
   config.selectedFields = config.selectedFields || {
     key: 1, expiredIn: 1, expiredTime: 1, phoneNumber: 0,
@@ -70,7 +71,10 @@ function Handler(params = {}) {
   }
 
   this.refreshToken = function (packet) {
-    return Promise.resolve(packet);
+    return Promise.resolve(packet)
+      .then(attachServices)
+      .then(refreshToken)
+      .then(detachServices);
   }
 };
 
@@ -293,6 +297,39 @@ function verifyOTP (packet = {}) {
       expires_in: verification.expiredIn,
     }
     return lodash.assign(packet, {data: { auth, user } })
+  });
+}
+
+function refreshToken(packet = {}) {
+  const { schemaManager, oauthApi, config, data } = packet;
+  // search user.agentApp
+  let appType = 'agentApp';
+  return Promise.resolve()
+  .then(function() {
+    return getModelMethodPromise(schemaManager, 'UserModel', 'findOne');
+  })
+  .then(function(method) {
+    const conditions = {};
+    conditions[[appType, "refreshToken"].join(".")] = data.refreshToken;
+    const opts = {};
+    return method(conditions, null, opts);
+  })
+  .then(function(user) {
+    const now = moment();
+    const expiredTime = now.add(config.tokenExpiredIn, 'seconds');
+    const verification = {
+      appType: appType,
+      phoneNumber: user[appType].phoneNumber,
+      expiredIn: config.tokenExpiredIn,
+      expiredTime: expiredTime
+    }
+    const auth = {
+      token_type: "Bearer",
+      access_token: oauthApi.createAppAccessToken({ user, verification }),
+      refresh_token: user[verification.appType].refreshToken,
+      expires_in: verification.expiredIn,
+    }
+    return lodash.assign(packet, { data: { auth } });
   });
 }
 

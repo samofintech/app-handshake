@@ -11,7 +11,7 @@ function OauthApi(params = {}) {
 
   config.expiredIn = config.expiredIn || 15 * 60; // expires in 15 minutes
 
-  this.createAppAccessToken = function({ verification, user }) {
+  this.createAppAccessToken = function({ user, verification }) {
     const data = lodash.pick(verification, [
       "appType", "phoneNumber", "expiredIn", "expiredTime"
     ]);

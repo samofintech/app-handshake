@@ -101,7 +101,13 @@ var mappings = [
         body: lodash.get(result, "data")
       };
       return payload;
-    }
+    },
+    transformError: function(err, req) {
+      return {
+        code: 500,
+        text: err.message
+      };
+    },
   }
 ]
 
