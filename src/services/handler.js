@@ -56,7 +56,7 @@ function Handler(params = {}) {
     return Promise.resolve(packet)
       .then(attachServices)
       .then(upsertDevice)
-      .then(upsertUser)
+      .then(validateUser)
       .then(generateOTP)
       .then(sendOTP)
       .then(summarize)
@@ -150,6 +150,42 @@ function upsertUser (packet = {}) {
     }
 
     return method(conditions, userObject, { new: true, upsert: true });
+  })
+  .then(function(user) {
+    return lodash.assign(packet, { user });
+  });
+}
+
+function validateUser (packet = {}) {
+  const { schemaManager, config, data, device } = packet;
+  const appType = sanitizeAppType((data && data.appType) || 'agentApp');
+  if (appType == null) {
+    return Promise.reject(new Error(util.format('Unsupported appType [%s]', appType)));
+  }
+  return Promise.resolve().then(function() {
+    return getModelMethodPromise(schemaManager, 'UserModel', 'findOne');
+  })
+  .then(function(method) {
+    const err = sanitizePhone(data, config);
+    if (err) {
+      return Promise.reject(err);
+    }
+
+    const conditions = {};
+    conditions[[appType, "phoneNumber"].join(".")] = data.phoneNumber;
+
+    return method(conditions, null, {});
+  })
+  .then(function(user) {
+    if (!user) {
+      const err = new Error("user not found");
+      err.payload = {
+        phoneNumber: data.phoneNumber
+      }
+      return Promise.reject(err);
+    }
+    lodash.assign(user[appType], { device: device });
+    return user.save();
   })
   .then(function(user) {
     return lodash.assign(packet, { user });
@@ -286,10 +322,10 @@ function verifyOTP (packet = {}) {
       }
       user[verification.appType].verified = true;
       user[verification.appType].refreshToken = genKey();
-      return [ verification, user.save() ];
+      return [ user.save(), verification ];
     })
   })
-  .spread(function(verification, user) {
+  .spread(function(user, verification) {
     const auth = {
       token_type: "Bearer",
       access_token: oauthApi.createAppAccessToken({ user, verification }),
