@@ -9,15 +9,15 @@ function OauthApi(params = {}) {
   const T = params.loggingFactory.getTracer();
   const config = lodash.get(params, ['sandboxConfig'], {});
 
-  config.expiredIn = config.expiredIn || 15 * 60; // expires in 15 minutes
+  config.otpExpiredIn = config.otpExpiredIn || 15 * 60; // expires in 15 minutes
 
   this.createAppAccessToken = function({ user, verification }) {
     const data = lodash.pick(verification, [
       "appType", "phoneNumber", "expiredIn", "expiredTime"
     ]);
     data.user = user._id;
-    const token = jwt.sign(data, config.secretkey || 't0ps3cr3t', {
-      expiresIn: data.expiredIn || config.expiredIn
+    const token = jwt.sign(data, config.secretKey || 't0ps3cr3t', {
+      expiresIn: data.expiredIn || config.otpExpiredIn
     });
     return token;
   }

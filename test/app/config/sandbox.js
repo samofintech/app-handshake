@@ -8,11 +8,10 @@ module.exports = {
   },
   plugins: {
     appHandshake: {
-      contextPath: contextPath,
-      expiredIn: 15 * 60,
-      expiredMargin: 5 * 60,
+      otpExpiredIn: 15 * 60,
+      otpTypingTime: 5 * 60,
       otpSize: 4,
-      secretkey: 'dobietday',
+      secretKey: 'dobietday',
     },
     appRestfront: {
       contextPath: contextPath,

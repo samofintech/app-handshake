@@ -23,8 +23,8 @@ function Handler(params = {}) {
   const { oauthApi, sandboxRegistry, schemaManager } = params;
 
   const config = lodash.get(params, ['sandboxConfig'], {});
-  config.expiredIn = config.expiredIn || 15 * 60;
-  config.expiredMargin = config.expiredMargin || 2 * 60;
+  config.otpExpiredIn = config.otpExpiredIn || 15 * 60;
+  config.otpTypingTime = config.otpTypingTime || 2 * 60;
   config.otpSize = config.otpSize || 7;
   config.tokenExpiredIn = config.tokenExpiredIn || 15 * 60;
   config.defaultCountryCode = config.defaultCountryCode || 'VN';
@@ -221,7 +221,7 @@ function generateOTP (packet = {}) {
   })
   .then(function(verification) {
     const now = moment();
-    const nowPlus = now.add(config.expiredMargin, 'seconds');
+    const nowPlus = now.add(config.otpTypingTime, 'seconds');
     if (verification) {
       if (verification.expiredTime) {
         const oldExpiredTime = new moment(verification.expiredTime);
@@ -243,8 +243,8 @@ function generateOTP (packet = {}) {
         const obj = {
           key: genKey(),
           otp: otp.generate(config.otpSize, otpDefaultOpts),
-          expiredIn: config.expiredIn,
-          expiredTime: now.add(config.expiredIn, 'seconds').toDate(),
+          expiredIn: config.otpExpiredIn,
+          expiredTime: now.add(config.otpExpiredIn, 'seconds').toDate(),
           user: user._id,
           device: device._id,
           appType: appType,
