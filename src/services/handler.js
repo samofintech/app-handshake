@@ -302,8 +302,11 @@ function verifyOTP (packet = {}) {
 
 function refreshToken(packet = {}) {
   const { schemaManager, oauthApi, config, data } = packet;
+  const appType = sanitizeAppType((data && data.appType) || 'agentApp');
+  if (appType == null) {
+    return Promise.reject(new Error(util.format('Unsupported appType [%s]', appType)));
+  }
   // search user.agentApp
-  let appType = 'agentApp';
   return Promise.resolve()
   .then(function() {
     return getModelMethodPromise(schemaManager, 'UserModel', 'findOne');
@@ -338,6 +341,13 @@ function mappingAppType(appType) {
     return 'agentApp';
   }
   return Promise.reject(new Error(util.format('Unsupported appType [%s]', appType)));
+}
+
+function sanitizeAppType(appType) {
+  if (['sales', 'agent', 'agent-app', 'agentApp'].indexOf(appType) >= 0) {
+    return 'agentApp';
+  }
+  return null;
 }
 
 function sanitizePhone (data = {}, config = {}) {
