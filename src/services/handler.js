@@ -218,7 +218,10 @@ function generateOTP (packet = {}) {
       if (verification.expiredTime) {
         const oldExpiredTime = new moment(verification.expiredTime);
         if (nowPlus.isAfter(oldExpiredTime)) {
+          // there is no time to press the received token, create another verification
           verification = null;
+        } else {
+          lodash.assign(packet, { skipped: true });
         }
       } else {
         verification = null;
@@ -252,7 +255,10 @@ function generateOTP (packet = {}) {
 }
 
 function sendOTP (packet = {}) {
-  const { packageName, config, serviceSelector, verification } = packet;
+  const { packageName, config, serviceSelector, verification, skipped } = packet;
+  if (skipped === true) {
+    return Promise.resolve(packet);
+  }
   const messenderService = [packageName, 'messender'].join(chores.getSeparator());
   const ref = serviceSelector.lookupMethod(messenderService, 'sendSMS');
   if (ref.service && ref.method) {
