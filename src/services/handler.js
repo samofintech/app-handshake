@@ -53,14 +53,22 @@ function Handler(params = {}) {
   }
 
   this.authenticate = function (packet) {
-    return Promise.resolve(packet)
+    let p = Promise.resolve(packet)
       .then(attachServices)
-      .then(upsertDevice)
-      .then(validateUser)
-      .then(generateOTP)
+      .then(upsertDevice);
+
+    if (config.rejectUnknownUser === false) {
+      p = p.then(upsertUser);
+    } else {
+      p = p.then(validateUser);
+    }
+
+    p = p.then(generateOTP)
       .then(sendOTP)
       .then(summarize)
       .then(detachServices);
+
+    return p;
   }
 
   this.verificationCode = function (packet) {
