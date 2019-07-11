@@ -6,6 +6,7 @@ const Promise = Devebot.require('bluebird');
 const chores = Devebot.require('chores');
 const lodash = Devebot.require('lodash');
 const logolite = Devebot.require('logolite');
+const format = logolite.LogFormat;
 const genKey = logolite.LogConfig.getLogID;
 const moment = require('moment');
 const util = require('util');
@@ -26,6 +27,8 @@ function Handler(params = {}) {
   config.otpExpiredIn = config.otpExpiredIn || 15 * 60;
   config.otpTypingTime = config.otpTypingTime || 2 * 60;
   config.otpSize = config.otpSize || 7;
+  config.smsTemplate = config.smsTemplate ||
+    'Please use the code - ${otp} to verify your phone for app authentication';
   config.tokenExpiredIn = config.tokenExpiredIn || 15 * 60;
   config.defaultCountryCode = config.defaultCountryCode || 'VN';
   config.selectedFields = config.selectedFields || {
@@ -271,7 +274,7 @@ function sendOTP (packet = {}) {
   const ref = serviceSelector.lookupMethod(messenderService, 'sendSMS');
   if (ref.service && ref.method) {
     ref.method({
-      text: util.format("Please use the code - %s to verify your phone", verification.otp),
+      text: format(config.smsTemplate, { otp: verification.otp }),
       phoneNumber: verification.phoneNumber,
     });
   }

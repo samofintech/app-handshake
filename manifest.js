@@ -13,6 +13,9 @@ module.exports = {
           "otpSize": {
             "type": "number"
           },
+          "smsTemplate": {
+            "type": "string"
+          },
           "tokenExpiredIn": {
             "type": "number"
           },
