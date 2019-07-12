@@ -55,7 +55,7 @@ function Handler(params = {}) {
     return lodash.omit(packet, lodash.keys(ctx));
   }
 
-  this.authenticate = function (packet) {
+  this.login = function (packet) {
     let p = Promise.resolve(packet)
       .then(attachServices)
       .then(upsertDevice);

@@ -6,7 +6,7 @@ module.exports = {
       services: {
         handler: {
           methods: {
-            authenticate: {
+            login: {
               mocking: {
                 mappings: {
                   "ok": {

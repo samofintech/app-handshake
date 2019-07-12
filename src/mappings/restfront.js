@@ -40,7 +40,7 @@ var mappings = [
       }
     },
     serviceName: 'app-handshake/handler',
-    methodName: 'authenticate',
+    methodName: 'login',
     transformError: function(err, req) {
       let code = 500;
       let text = err.message;
@@ -57,6 +57,33 @@ var mappings = [
         body: lodash.get(result, "data")
       };
       return payload;
+    }
+  },
+  {
+    path: '/auth/logout',
+    method: 'POST',
+    input: {
+      example: {
+        refreshToken: "UqR32OQ3S4arU3KalHbz9A"
+      },
+      transform: function(req) {
+        return {
+          data: req.body
+        }
+      }
+    },
+    serviceName: 'app-handshake/handler',
+    methodName: 'logout',
+    output: {
+      transform: function(result, req) {
+        const payload = {
+          headers: {
+            "X-Return-Code": result.code || 0
+          },
+          body: lodash.get(result, "data")
+        };
+        return payload;
+      }
     }
   },
   {
