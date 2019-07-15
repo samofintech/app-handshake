@@ -170,11 +170,11 @@ function upsertDevice (packet = {}) {
 
 function upsertUser (packet = {}) {
   const { schemaManager, config, data, device } = packet;
-  let appType = 'unknown';
+  const appType = sanitizeAppType((data && data.appType) || 'agentApp');
+  if (appType == null) {
+    return Promise.reject(new Error(util.format('Unsupported appType [%s]', appType)));
+  }
   return Promise.resolve().then(function() {
-    return (appType = mappingAppType(data.appType));
-  })
-  .then(function() {
     return getModelMethodPromise(schemaManager, 'UserModel', 'findOneAndUpdate');
   })
   .then(function(method) {
@@ -229,6 +229,13 @@ function validateUser (packet = {}) {
       }
       return Promise.reject(err);
     }
+    if (user.activated == false) {
+      const err = new Error("user is locked");
+      err.payload = {
+        phoneNumber: data.phoneNumber
+      }
+      return Promise.reject(err);
+    }
     lodash.assign(user[appType], { device: device });
     return user.save();
   })
@@ -239,11 +246,11 @@ function validateUser (packet = {}) {
 
 function generateOTP (packet = {}) {
   const { schemaManager, config, data, user, device } = packet;
-  let appType = 'unknown';
+  const appType = sanitizeAppType((data && data.appType) || 'agentApp');
+  if (appType == null) {
+    return Promise.reject(new Error(util.format('Unsupported appType [%s]', appType)));
+  }
   return Promise.resolve().then(function() {
-    return (appType = mappingAppType(data.appType));
-  })
-  .then(function() {
     return getModelMethodPromise(schemaManager, 'VerificationModel', 'findOne');
   })
   .then(function(method) {
@@ -421,13 +428,6 @@ function refreshToken(packet = {}) {
     }
     return lodash.assign(packet, { data: { auth } });
   });
-}
-
-function mappingAppType(appType) {
-  if (['sales', 'agent', 'agent-app', 'agentApp'].indexOf(appType) >= 0) {
-    return 'agentApp';
-  }
-  return Promise.reject(new Error(util.format('Unsupported appType [%s]', appType)));
 }
 
 function sanitizeAppType(appType) {
