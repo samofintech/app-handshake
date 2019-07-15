@@ -3,6 +3,6 @@
 ```shell
 export DEBUG=devebot*,app*
 export LOGOLITE_DEBUGLOG_ENABLED=true
-export DEVEBOT_TEXTURE=mock
+export DEVEBOT_TEXTURE=messender
 node test/app
 ```

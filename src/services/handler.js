@@ -121,6 +121,13 @@ function Handler(params = {}) {
       .then(refreshToken)
       .then(detachServices);
   }
+
+  this.updateUser = function (packet) {
+    return Promise.resolve(packet)
+      .then(attachServices)
+      .then(updateUser)
+      .then(detachServices);
+  }
 };
 
 Handler.referenceHash = {
@@ -231,6 +238,13 @@ function validateUser (packet = {}) {
     }
     if (user.activated == false) {
       const err = new Error("user is locked");
+      err.payload = {
+        phoneNumber: data.phoneNumber
+      }
+      return Promise.reject(err);
+    }
+    if (user.deleted == true) {
+      const err = new Error("user is deleted");
       err.payload = {
         phoneNumber: data.phoneNumber
       }
@@ -394,7 +408,7 @@ function verifyOTP (packet = {}) {
   });
 }
 
-function refreshToken(packet = {}) {
+function refreshToken (packet = {}) {
   const { schemaManager, oauthApi, config, data } = packet;
   const appType = sanitizeAppType((data && data.appType) || 'agentApp');
   if (appType == null) {
@@ -427,6 +441,62 @@ function refreshToken(packet = {}) {
       expires_in: verification.expiredIn,
     }
     return lodash.assign(packet, { data: { auth } });
+  });
+}
+
+const MIRROR_USER_FIELDS = ['firstName', 'lastName', 'email', 'activated', 'deleted'];
+
+function updateUser (packet = {}) {
+  const { schemaManager, config, data } = packet;
+  const appType = sanitizeAppType((data && data.appType) || 'agentApp');
+  if (appType == null) {
+    return Promise.reject(new Error(util.format('Unsupported appType [%s]', appType)));
+  }
+  return Promise.resolve().then(function() {
+    return getModelMethodPromise(schemaManager, 'UserModel', 'findOne');
+  })
+  .then(function(method) {
+    // sanitize the phone number
+    const err = sanitizePhone(data, config);
+    if (err) {
+      return Promise.reject(err);
+    }
+    // query an user by the phoneNumber
+    const conditions = {};
+    conditions[[appType, "phoneNumber"].join(".")] = data.phoneNumber;
+    // make the query
+    return method(conditions, null, {})
+    .then(function(user) {
+      if (user) {
+        lodash.forEach(MIRROR_USER_FIELDS, function(field) {
+          if (field in data) {
+            user[field] = data[field];
+          }
+        });
+        return user.save();
+      } else {
+        const user = {};
+        user[appType] = {
+          phoneNumber: data.phoneNumber,
+          phone: data.phone,
+        }
+        lodash.forEach(MIRROR_USER_FIELDS, function(field) {
+          if (field in data) {
+            user[field] = data[field];
+          }
+        });
+        const userCreate = getModelMethodPromise(schemaManager, 'UserModel', 'create');
+        return userCreate.then(function(method) {
+          const opts = {};
+          return method([user], opts).spread(function(user) {
+            return user;
+          });
+        });
+      }
+    })
+  })
+  .then(function(user) {
+    return lodash.assign(packet, { user });
   });
 }
 
