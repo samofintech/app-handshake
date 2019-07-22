@@ -34,46 +34,8 @@ var mappings = [
         }
       }
     },
-    transformRequest: function(req) {
-      return {
-        data: req.body
-      }
-    },
     serviceName: 'app-handshake/handler',
     methodName: 'login',
-    transformError: function(err, req) {
-      let code = 500;
-      let text = err.message;
-      return {
-        code: code,
-        text: text
-      };
-    },
-    transformResponse: function(result, req) {
-      const payload = {
-        headers: {
-          "X-Return-Code": result.code || 0
-        },
-        body: lodash.get(result, "data")
-      };
-      return payload;
-    }
-  },
-  {
-    path: '/auth/logout',
-    method: 'POST',
-    input: {
-      example: {
-        refreshToken: "UqR32OQ3S4arU3KalHbz9A"
-      },
-      transform: function(req) {
-        return {
-          data: req.body
-        }
-      }
-    },
-    serviceName: 'app-handshake/handler',
-    methodName: 'logout',
     output: {
       transform: function(result, req) {
         const payload = {
@@ -84,59 +46,79 @@ var mappings = [
         };
         return payload;
       }
-    }
+    },
+    error: {
+      transform: function(err, req) {
+        return {
+          statusCode: 500,
+          body: {
+            message: err.message
+          }
+        };
+      },
+    },
   },
   {
     path: '/auth/verification-code',
     method: 'POST',
     input: {
+      transform: function(req) {
+        return {
+          data: req.body
+        }
+      },
       example: {
         key: "UqR32OQ3S4arU3KalHbz9A",
         otp: "1543"
-      }
-    },
-    transformRequest: function(req) {
-      return {
-        data: req.body
-      }
+      },
     },
     serviceName: 'app-handshake/handler',
     methodName: 'verificationCode',
-    transformResponse: function(result, req) {
-      const payload = {
-        headers: {
-          "X-Return-Code": result.code
-        },
-        body: lodash.get(result, "data")
-      };
-      return payload;
+    output: {
+      transform: function(result, req) {
+        const payload = {
+          headers: {
+            "X-Return-Code": result.code
+          },
+          body: lodash.get(result, "data")
+        };
+        return payload;
+      }
     }
   },
   {
     path: '/auth/refresh-token',
     method: 'POST',
-    transformRequest: function(req) {
-      return {
-        data: req.body
-      }
+    input: {
+      transform: function(req) {
+        return {
+          data: req.body
+        }
+      },
     },
     serviceName: 'app-handshake/handler',
     methodName: 'refreshToken',
-    transformResponse: function(result, req) {
-      const payload = {
-        headers: {
-          "X-Return-Code": result.code
-        },
-        body: lodash.get(result, "data")
-      };
-      return payload;
+    output: {
+      transform: function(result, req) {
+        const payload = {
+          headers: {
+            "X-Return-Code": result.code
+          },
+          body: lodash.get(result, "data")
+        };
+        return payload;
+      },
     },
-    transformError: function(err, req) {
-      return {
-        code: 500,
-        text: err.message
-      };
-    },
+    error: {
+      transform: function(err, req) {
+        return {
+          statusCode: 500,
+          body: {
+            message: err.message
+          }
+        };
+      },
+    }
   },
   {
     path: '/auth/update-user',
@@ -172,6 +154,34 @@ var mappings = [
       }
     }
   },
+  {
+    path: '/auth/revoke-token',
+    method: 'POST',
+    input: {
+      example: {
+        appType: 'agentApp',
+        phoneNumber: '+84999999999'
+      },
+      transform: function(req) {
+        return {
+          data: req.body
+        }
+      }
+    },
+    serviceName: 'app-handshake/handler',
+    methodName: 'revokeToken',
+    output: {
+      transform: function(result, req) {
+        const payload = {
+          headers: {
+            "X-Return-Code": result.code || 0
+          },
+          body: lodash.get(result, "data")
+        };
+        return payload;
+      }
+    }
+  }
 ]
 
 module.exports = mappings;

@@ -122,6 +122,13 @@ function Handler(params = {}) {
       .then(detachServices);
   }
 
+  this.revokeToken = function (packet) {
+    return Promise.resolve(packet)
+      .then(attachServices)
+      .then(revokeToken)
+      .then(detachServices);
+  }
+
   this.updateUser = function (packet) {
     return Promise.resolve(packet)
       .then(attachServices)
@@ -497,6 +504,29 @@ function updateUser (packet = {}) {
   })
   .then(function(user) {
     return lodash.assign(packet, { user });
+  });
+}
+
+function revokeToken (packet = {}) {
+  const { schemaManager, config, data } = packet;
+  const appType = sanitizeAppType((data && data.appType) || 'agentApp');
+  if (appType == null) {
+    return Promise.reject(new Error(util.format('Unsupported appType [%s]', appType)));
+  }
+  return Promise.resolve().then(function() {
+    return getModelMethodPromise(schemaManager, 'UserModel', 'findOne');
+  })
+  .then(function(method) {
+    const conditions = {};
+    conditions[[appType, "phoneNumber"].join(".")] = data.phoneNumber;
+    return method(conditions, null, {});
+  })
+  .then(function(user) {
+    if (user) {
+      user.refreshToken = null;
+      return user.save();
+    }
+    return Promise.resolve({});
   });
 }
 
