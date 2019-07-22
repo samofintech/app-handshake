@@ -1,6 +1,6 @@
 {
   "name": "app-handshake",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "description": "Devebot keycloak authentication layerware",
   "license": "MIT",
   "homepage": "https://github.com/apporo/app-handshake.git",
