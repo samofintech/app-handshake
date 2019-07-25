@@ -23,7 +23,7 @@ module.exports = {
         countryCode: { type: String },
         number: { type: String },
       },
-      memberId: { type: Schema.Types.ObjectId },
+      holderId: { type: Schema.Types.ObjectId },
       verified: { type: Boolean, default: false },
       refreshToken: { type: String }
     },

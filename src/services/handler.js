@@ -232,11 +232,7 @@ function validateUser (packet = {}) {
     if (!user) {
       if (config.rejectUnknownUser === false) {
         const user = {};
-        user[appType] = {
-          device: device,
-          phoneNumber: data.phoneNumber,
-          phone: data.phone,
-        }
+        user[appType] = { device };
         assignUserData(appType, user, data);
         const userCreate = getModelMethodPromise(schemaManager, 'UserModel', 'create');
         return userCreate.then(function(method) {
@@ -479,29 +475,46 @@ function updateUser (packet = {}) {
     if (err) {
       return Promise.reject(err);
     }
+    // query an user by the holderId
+    let findByHolderId = Promise.resolve();
+    if (data['holderId']) {
+      const conditions = {};
+      conditions[[appType, 'holderId'].join(".")] = data['holderId'];
+      findByHolderId = method(conditions, null, {});
+    }
     // query an user by the phoneNumber
-    const conditions = {};
-    conditions[[appType, "phoneNumber"].join(".")] = data.phoneNumber;
+    let findByPhoneNumber = Promise.resolve();
+    if (data['phoneNumber']) {
+      const conditions = {};
+      conditions[[appType, 'phoneNumber'].join(".")] = data['phoneNumber'];
+      findByPhoneNumber = method(conditions, null, {});
+    }
     // make the query
-    return method(conditions, null, {})
-    .then(function(user) {
-      if (user) {
-        assignUserData(appType, user, data);
-        return user.save();
-      } else {
-        const user = {};
-        user[appType] = {
-          phoneNumber: data.phoneNumber,
-          phone: data.phone,
+    return Promise.all([findByHolderId, findByPhoneNumber])
+    .spread(function(userById, user) {
+      if (userById) {
+        if (user) {
+          if (userById._id.toString() !== user._id.toString()) {
+            return Promise.reject(new Error('The phoneNumber is already registered'));
+          }
         }
-        assignUserData(appType, user, data);
-        const userCreate = getModelMethodPromise(schemaManager, 'UserModel', 'create');
-        return userCreate.then(function(method) {
-          const opts = {};
-          return method([user], opts).spread(function(user) {
-            return user;
+        assignUserData(appType, userById, data);
+        return userById.save();
+      } else {
+        if (user) {
+          assignUserData(appType, user, data);
+          return user.save();
+        } else {
+          const user = {};
+          assignUserData(appType, user, data);
+          const userCreate = getModelMethodPromise(schemaManager, 'UserModel', 'create');
+          return userCreate.then(function(method) {
+            const opts = {};
+            return method([user], opts).spread(function(user) {
+              return user;
+            });
           });
-        });
+        }
       }
     })
   })
@@ -521,9 +534,13 @@ function assignUserData (appType, user = {}, data = {}) {
       user[field] = data[field];
     }
   });
-  if (lodash.isString(data.memberId)) {
-    user[appType] = user[appType] || {};
-    user[appType].memberId = new mongoose.Types.ObjectId(data.memberId);
+  user[appType] = user[appType] || {};
+  if (lodash.isString(data.phoneNumber) && data.phoneNumber != user[appType].phoneNumber) {
+    user[appType].phoneNumber = data.phoneNumber;
+    user[appType].phone = data.phone;
+  }
+  if (lodash.isString(data.holderId) && data.holderId != user[appType].holderId) {
+    user[appType].holderId = new mongoose.Types.ObjectId(data.holderId);
   }
   return user;
 }
