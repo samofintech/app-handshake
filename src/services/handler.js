@@ -14,6 +14,7 @@ const glpn = require('google-libphonenumber');
 const phoneUtil = glpn.PhoneNumberUtil.getInstance();
 const otp = require('../utils/otp-generator');
 const otpDefaultOpts = { alphabets: false, upperCase: false, specialChars: false };
+const mongoose = require('app-datastore').require('mongoose');
 
 function Handler(params = {}) {
   const L = params.loggingFactory.getLogger();
@@ -90,22 +91,14 @@ function Handler(params = {}) {
   }
 
   this.login = function (packet) {
-    let p = Promise.resolve(packet)
+    return Promise.resolve(packet)
       .then(attachServices)
-      .then(upsertDevice);
-
-    if (config.rejectUnknownUser === false) {
-      p = p.then(upsertUser);
-    } else {
-      p = p.then(validateUser);
-    }
-
-    p = p.then(generateOTP)
+      .then(upsertDevice)
+      .then(validateUser)
+      .then(generateOTP)
       .then(sendOTP)
-      .then(summarize)
+      .then(loginEnd)
       .then(detachServices);
-
-    return p;
   }
 
   this.verificationCode = function (packet) {
@@ -237,11 +230,28 @@ function validateUser (packet = {}) {
   })
   .then(function(user) {
     if (!user) {
-      const err = new Error("user not found");
-      err.payload = {
-        phoneNumber: data.phoneNumber
+      if (config.rejectUnknownUser === false) {
+        const user = {};
+        user[appType] = {
+          device: device,
+          phoneNumber: data.phoneNumber,
+          phone: data.phone,
+        }
+        assignUserData(appType, user, data);
+        const userCreate = getModelMethodPromise(schemaManager, 'UserModel', 'create');
+        return userCreate.then(function(method) {
+          const opts = {};
+          return method([user], opts).spread(function(user) {
+            return user;
+          });
+        });
+      } else {
+        const err = new Error("user not found");
+        err.payload = {
+          phoneNumber: data.phoneNumber
+        }
+        return Promise.reject(err);
       }
-      return Promise.reject(err);
     }
     if (user.activated == false) {
       const err = new Error("user is locked");
@@ -343,7 +353,7 @@ function sendOTP (packet = {}) {
   return Promise.resolve(packet);
 }
 
-function summarize (packet = {}) {
+function loginEnd (packet = {}) {
   const { config, verification } = packet;
   return {
     data: lodash.pick(verification, config.projection)
@@ -405,6 +415,9 @@ function verifyOTP (packet = {}) {
     })
   })
   .spread(function(user, verification) {
+    if (user && lodash.isFunction(user.toJSON)) {
+      user = user.toJSON();
+    }
     const auth = {
       token_type: "Bearer",
       access_token: oauthApi.createAppAccessToken({ user, verification }),
@@ -451,8 +464,6 @@ function refreshToken (packet = {}) {
   });
 }
 
-const MIRROR_USER_FIELDS = ['firstName', 'lastName', 'email', 'activated', 'deleted'];
-
 function updateUser (packet = {}) {
   const { schemaManager, config, data } = packet;
   const appType = sanitizeAppType((data && data.appType) || 'agentApp');
@@ -475,11 +486,7 @@ function updateUser (packet = {}) {
     return method(conditions, null, {})
     .then(function(user) {
       if (user) {
-        lodash.forEach(MIRROR_USER_FIELDS, function(field) {
-          if (field in data) {
-            user[field] = data[field];
-          }
-        });
+        assignUserData(appType, user, data);
         return user.save();
       } else {
         const user = {};
@@ -487,11 +494,7 @@ function updateUser (packet = {}) {
           phoneNumber: data.phoneNumber,
           phone: data.phone,
         }
-        lodash.forEach(MIRROR_USER_FIELDS, function(field) {
-          if (field in data) {
-            user[field] = data[field];
-          }
-        });
+        assignUserData(appType, user, data);
         const userCreate = getModelMethodPromise(schemaManager, 'UserModel', 'create');
         return userCreate.then(function(method) {
           const opts = {};
@@ -503,8 +506,26 @@ function updateUser (packet = {}) {
     })
   })
   .then(function(user) {
+    if (user && lodash.isFunction(user.toJSON)) {
+      user = user.toJSON();
+    }
     return lodash.assign(packet, { user });
   });
+}
+
+const MIRROR_USER_FIELDS = ['firstName', 'lastName', 'email', 'activated', 'deleted'];
+
+function assignUserData (appType, user = {}, data = {}) {
+  lodash.forEach(MIRROR_USER_FIELDS, function(field) {
+    if (field in data) {
+      user[field] = data[field];
+    }
+  });
+  if (lodash.isString(data.memberId)) {
+    user[appType] = user[appType] || {};
+    user[appType].memberId = new mongoose.Types.ObjectId(data.memberId);
+  }
+  return user;
 }
 
 function revokeToken (packet = {}) {

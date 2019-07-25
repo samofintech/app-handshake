@@ -15,7 +15,8 @@ function OauthApi(params = {}) {
     const data = lodash.pick(verification, [
       "appType", "phoneNumber", "expiredIn", "expiredTime"
     ]);
-    data.user = user._id;
+    data.userId = user._id;
+    data.memberId = lodash.get(user, [data.appType, 'memberId']);
     const token = jwt.sign(data, config.secretKey || 't0ps3cr3t', {
       expiresIn: data.expiredIn || config.otpExpiredIn
     });

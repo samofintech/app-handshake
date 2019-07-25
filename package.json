@@ -1,6 +1,6 @@
 {
   "name": "app-handshake",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "description": "Devebot keycloak authentication layerware",
   "license": "MIT",
   "homepage": "https://github.com/apporo/app-handshake.git",
@@ -48,7 +48,6 @@
     "devebot": "^0.3.0",
     "google-libphonenumber": "^3.2.3",
     "jsonwebtoken": "^8.5.1",
-    "keycloak-admin": "^1.12.0",
     "moment": "^2.24.0"
   },
   "devDependencies": {

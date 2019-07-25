@@ -16,7 +16,6 @@ module.exports = {
     gender: { type: String },
     avatar: { type: String },
     agentApp: {
-      verified: { type: Boolean, default: false },
       device: { type: Schema.Types.ObjectId, ref: "DeviceModel" },
       phoneNumber: { type: String },
       phone: {
@@ -24,6 +23,8 @@ module.exports = {
         countryCode: { type: String },
         number: { type: String },
       },
+      memberId: { type: Schema.Types.ObjectId },
+      verified: { type: Boolean, default: false },
       refreshToken: { type: String }
     },
     // Filtering
