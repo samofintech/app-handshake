@@ -16,8 +16,7 @@ module.exports = {
     },
     appRestfront: {
       contextPath: contextPath,
-      apiPath: '',
-      apiVersion: ''
+      apiPath: ''
     },
     appDatastore: {
     },
