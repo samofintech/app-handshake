@@ -462,6 +462,12 @@ function refreshToken (packet = {}) {
 
 function updateUser (packet = {}) {
   const { schemaManager, config, data } = packet;
+  if (!data) {
+    return Promise.reject(new Error('data is null'));
+  }
+  if (!data['holderId'] && !data['phoneNumber']) {
+    return Promise.reject(new Error('holderId/phoneNumber expected'));
+  }
   const appType = sanitizeAppType((data && data.appType) || 'agentApp');
   if (appType == null) {
     return Promise.reject(new Error(util.format('Unsupported appType [%s]', appType)));

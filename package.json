@@ -1,7 +1,7 @@
 {
   "name": "app-handshake",
-  "version": "0.3.3",
-  "description": "Devebot keycloak authentication layerware",
+  "version": "0.3.4",
+  "description": "Devebot oidc authentication layerware",
   "license": "MIT",
   "homepage": "https://github.com/apporo/app-handshake.git",
   "author": {
