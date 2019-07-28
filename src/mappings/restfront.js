@@ -181,7 +181,50 @@ var mappings = [
         return payload;
       }
     }
-  }
+  },
+  {
+    path: '/util/hash-password',
+    method: 'POST',
+    input: {
+      transform: function(req) {
+        if (lodash.isEmpty(req.body) || !lodash.isObject(req.body)) {
+          return Bluebird.reject(new Error("Request's body is invalid"));
+        }
+        if (!('password' in req.body)) {
+          return Bluebird.reject(new Error("Password field not found"));
+        }
+        return req.body.password;
+      },
+      examples: {
+        "ok": "changeme",
+      }
+    },
+    serviceName: 'app-handshake/bcryptor',
+    methodName: 'hash',
+    output: {
+      transform: function(result, req) {
+        const payload = {
+          headers: {
+            "X-Return-Code": 0
+          },
+          body: {
+            "digest": result
+          }
+        };
+        return payload;
+      }
+    },
+    error: {
+      transform: function(err, req) {
+        return {
+          statusCode: 500,
+          body: {
+            message: err.message
+          }
+        };
+      },
+    },
+  },
 ]
 
 module.exports = mappings;

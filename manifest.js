@@ -13,6 +13,9 @@ module.exports = {
           "otpSize": {
             "type": "number"
           },
+          "saltRounds": {
+            "type": "number"
+          },
           "smsTemplate": {
             "type": "string"
           },

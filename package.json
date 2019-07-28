@@ -45,6 +45,7 @@
     "app-restfront": "^0.3.1",
     "app-tracelog": "^0.3.0",
     "app-webweaver": "^0.3.0",
+    "bcryptjs": "^2.4.3",
     "devebot": "^0.3.0",
     "google-libphonenumber": "^3.2.3",
     "jsonwebtoken": "^8.5.1",
