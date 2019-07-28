@@ -93,11 +93,19 @@ function Handler(params = {}) {
   this.login = function (packet) {
     return Promise.resolve(packet)
       .then(attachServices)
+      .then(loginProcedure)
+      .then(loginCompleted)
+      .then(detachServices);
+  }
+
+  this.register = function (packet) {
+    return Promise.resolve(packet)
+      .then(attachServices)
       .then(upsertDevice)
       .then(validateUser)
       .then(generateOTP)
       .then(sendOTP)
-      .then(loginEnd)
+      .then(registerEnd)
       .then(detachServices);
   }
 
@@ -152,6 +160,17 @@ function getModelMethodPromise (schemaManager, modelName, methodName) {
     return Promise.reject(new Error(modelName + '_not_available'));
   }
   return Promise.resolve(Promise.promisify(model[methodName], { context: model }));
+}
+
+function loginProcedure (packet = {}, reqOpts = {}) {
+  const { schemaManager, data } = packet;
+  const appType = sanitizeAppType((data && data.appType) || 'operaApp');
+  if (appType == null) {
+    return Promise.reject(new Error(util.format('Unsupported appType [%s]', appType)));
+  }
+  return Promise.resolve().then(function() {
+    return lodash.assign(packet, {});
+  });
 }
 
 function upsertDevice (packet = {}) {
@@ -349,7 +368,7 @@ function sendOTP (packet = {}) {
   return Promise.resolve(packet);
 }
 
-function loginEnd (packet = {}) {
+function registerEnd (packet = {}) {
   const { config, verification } = packet;
   return {
     data: lodash.pick(verification, config.projection)
@@ -442,6 +461,12 @@ function refreshToken (packet = {}) {
     return method(conditions, null, opts);
   })
   .then(function(user) {
+    if (!user) {
+      return Promise.reject(new Error("user not found"));
+    }
+    if (user[appType].verified == false) {
+      return Promise.reject(new Error("user has not be verified"));
+    }
     const now = moment();
     const expiredTime = now.add(config.tokenExpiredIn, 'seconds');
     const verification = {
@@ -542,6 +567,8 @@ function assignUserData (appType, user = {}, data = {}) {
   });
   user[appType] = user[appType] || {};
   if (lodash.isString(data.phoneNumber) && data.phoneNumber != user[appType].phoneNumber) {
+    // change the phoneNumber -> verified <- false, delete refreshToken
+    user[appType].verified = false;
     user[appType].phoneNumber = data.phoneNumber;
     user[appType].phone = data.phone;
   }
@@ -577,6 +604,9 @@ function revokeToken (packet = {}) {
 function sanitizeAppType(appType) {
   if (['sales', 'agent', 'agent-app', 'agentApp'].indexOf(appType) >= 0) {
     return 'agentApp';
+  }
+  if (['cc', 'operation', 'operaApp'].indexOf(appType) >= 0) {
+    return 'operaApp';
   }
   return null;
 }

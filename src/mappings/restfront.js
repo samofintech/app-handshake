@@ -35,7 +35,7 @@ var mappings = [
       }
     },
     serviceName: 'app-handshake/handler',
-    methodName: 'login',
+    methodName: 'register',
     output: {
       transform: function(result, req) {
         const payload = {
