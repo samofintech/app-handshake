@@ -4,6 +4,47 @@ var lodash = Devebot.require('lodash');
 
 var mappings = [
   {
+    path: '/auth/check-in',
+    method: 'POST',
+    input: {
+      transform: function(req) {
+        return {
+          data: req.body
+        }
+      },
+      examples: {
+        ok: {
+          "appType": "adminApp",
+          "username": "adm",
+          "password": "changeme",
+        }
+      }
+    },
+    serviceName: 'app-handshake/handler',
+    methodName: 'checkIn',
+    output: {
+      transform: function(result, req) {
+        const payload = {
+          headers: {
+            "X-Return-Code": result.code || 0
+          },
+          body: lodash.get(result, "data")
+        };
+        return payload;
+      }
+    },
+    error: {
+      transform: function(err, req) {
+        return {
+          statusCode: 500,
+          body: {
+            message: err.message
+          }
+        };
+      },
+    },
+  },
+  {
     path: '/auth/login',
     method: 'POST',
     input: {

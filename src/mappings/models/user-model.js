@@ -15,6 +15,14 @@ module.exports = {
     email: { type: String },
     gender: { type: String },
     avatar: { type: String },
+    adminApp: {
+      email: { type: String },
+      username: { type: String },
+      password: { type: String },
+      holderId: { type: Schema.Types.ObjectId },
+      verified: { type: Boolean, default: false },
+      refreshToken: { type: String }
+    },
     agentApp: {
       device: { type: Schema.Types.ObjectId, ref: "DeviceModel" },
       phoneNumber: { type: String },

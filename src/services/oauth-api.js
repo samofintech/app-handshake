@@ -11,10 +11,8 @@ function OauthApi(params = {}) {
 
   config.otpExpiredIn = config.otpExpiredIn || 15 * 60; // expires in 15 minutes
 
-  this.createAppAccessToken = function({ user, verification }) {
-    const data = lodash.pick(verification, [
-      "appType", "phoneNumber", "expiredIn", "expiredTime"
-    ]);
+  this.createAppAccessToken = function({ user, constraints }) {
+    const data = lodash.clone(constraints);
     data.userId = user._id;
     data.holderId = lodash.get(user, [data.appType, 'holderId']);
     const token = jwt.sign(data, config.secretKey || 't0ps3cr3t', {

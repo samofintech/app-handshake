@@ -90,11 +90,10 @@ function Handler(params = {}) {
     return lodash.omit(packet, lodash.keys(ctx));
   }
 
-  this.login = function (packet) {
+  this.checkIn = function (packet) {
     return Promise.resolve(packet)
       .then(attachServices)
-      .then(loginProcedure)
-      .then(loginCompleted)
+      .then(checkInProcedure)
       .then(detachServices);
   }
 
@@ -163,9 +162,9 @@ function getModelMethodPromise (schemaManager, modelName, methodName) {
   return Promise.resolve(Promise.promisify(model[methodName], { context: model }));
 }
 
-function loginProcedure (packet = {}, reqOpts = {}) {
-  const { schemaManager, data } = packet;
-  const appType = sanitizeAppType((data && data.appType) || 'operaApp');
+function checkInProcedure (packet = {}) {
+  const { bcryptor, oauthApi, schemaManager, config, data } = packet;
+  const appType = sanitizeAppType((data && data.appType) || 'adminApp');
   if (appType == null) {
     return Promise.reject(new Error(util.format('Unsupported appType [%s]', appType)));
   }
@@ -199,10 +198,41 @@ function loginProcedure (packet = {}, reqOpts = {}) {
       }
       return Promise.reject(err);
     }
-    return user;
+    // verify the password
+    const encPasswd = lodash.get(user, [appType, 'password'], null);
+    if (encPasswd === null) {
+      const err = new Error("password not found");
+      err.payload = {
+        username: data.username
+      }
+      return Promise.reject(err);
+    }
+    return bcryptor.compare(data.password, encPasswd).then(function(matched) {
+      if (matched) {
+        lodash.assign(user[appType], { refreshToken: genKey() });
+        return user.save();
+      } else {
+        return Promise.reject(new Error("password is mismatched"));
+      }
+    });
   })
   .then(function(user) {
-    return lodash.assign(packet, { user });
+    if (user && lodash.isFunction(user.toJSON)) {
+      user = user.toJSON();
+    }
+    const now = moment();
+    const expiredIn = config.otpExpiredIn;
+    const expiredTime = now.add(config.otpExpiredIn, 'seconds').toDate();
+    const auth = {
+      token_type: "Bearer",
+      access_token: oauthApi.createAppAccessToken({
+        user,
+        constraints: { appType, expiredIn, expiredTime },
+      }),
+      refresh_token: user[appType].refreshToken,
+      expires_in: expiredIn,
+    }
+    return lodash.assign(packet, {data: { auth, user } });
   });
 }
 
@@ -468,7 +498,12 @@ function verifyOTP (packet = {}) {
     }
     const auth = {
       token_type: "Bearer",
-      access_token: oauthApi.createAppAccessToken({ user, verification }),
+      access_token: oauthApi.createAppAccessToken({
+        user,
+        constraints: lodash.pick(verification, [
+          "appType", "phoneNumber", "expiredIn", "expiredTime"
+        ])
+      }),
       refresh_token: user[verification.appType].refreshToken,
       expires_in: verification.expiredIn,
     }
@@ -510,7 +545,12 @@ function refreshToken (packet = {}) {
     }
     const auth = {
       token_type: "Bearer",
-      access_token: oauthApi.createAppAccessToken({ user, verification }),
+      access_token: oauthApi.createAppAccessToken({
+        user,
+        constraints: lodash.pick(verification, [
+          "appType", "phoneNumber", "expiredIn", "expiredTime"
+        ])
+      }),
       refresh_token: user[verification.appType].refreshToken,
       expires_in: verification.expiredIn,
     }
@@ -638,8 +678,8 @@ function sanitizeAppType(appType) {
   if (['sales', 'agent', 'agent-app', 'agentApp'].indexOf(appType) >= 0) {
     return 'agentApp';
   }
-  if (['cc', 'operation', 'operaApp'].indexOf(appType) >= 0) {
-    return 'operaApp';
+  if (['cc', 'operation', 'adminApp'].indexOf(appType) >= 0) {
+    return 'adminApp';
   }
   return null;
 }
