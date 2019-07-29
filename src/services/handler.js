@@ -572,69 +572,71 @@ function updateUser (packet = {}) {
   if (appType == null) {
     return Promise.reject(new Error(util.format('Unsupported appType [%s]', appType)));
   }
+
+  let p = getModelMethodPromise(schemaManager, 'UserModel', 'findOne');
+
   if (appType === 'agentApp') {
     if (!data['holderId'] && !data['phoneNumber']) {
       return Promise.reject(new Error('[agentApp]: holderId/phoneNumber expected'));
     }
-  }
-  let p = Promise.resolve().then(function() {
-    return getModelMethodPromise(schemaManager, 'UserModel', 'findOne');
-  })
-  .then(function(method) {
-    // sanitize the phone number
-    const err = sanitizePhone(data, config);
-    if (err) {
-      return Promise.reject(err);
-    }
-    // query an user by the holderId
-    let findByHolderId = Promise.resolve();
-    if (data['holderId']) {
-      const conditions = {};
-      conditions[[appType, 'holderId'].join(".")] = data['holderId'];
-      findByHolderId = method(conditions, null, {});
-    }
-    // query an user by the phoneNumber
-    let findByPhoneNumber = Promise.resolve();
-    if (data['phoneNumber']) {
-      const conditions = {};
-      conditions[[appType, 'phoneNumber'].join(".")] = data['phoneNumber'];
-      findByPhoneNumber = method(conditions, null, {});
-    }
-    // make the query
-    return Promise.all([findByHolderId, findByPhoneNumber])
-    .spread(function(userById, user) {
-      if (userById) {
-        if (user) {
-          if (userById._id.toString() !== user._id.toString()) {
-            return Promise.reject(new Error('The phoneNumber is already registered'));
+    p = p.then(function(method) {
+      // sanitize the phone number
+      const err = sanitizePhone(data, config);
+      if (err) {
+        return Promise.reject(err);
+      }
+      // query an user by the holderId
+      let findByHolderId = Promise.resolve();
+      if (data['holderId']) {
+        const conditions = {};
+        conditions[[appType, 'holderId'].join(".")] = data['holderId'];
+        findByHolderId = method(conditions, null, {});
+      }
+      // query an user by the phoneNumber
+      let findByPhoneNumber = Promise.resolve();
+      if (data['phoneNumber']) {
+        const conditions = {};
+        conditions[[appType, 'phoneNumber'].join(".")] = data['phoneNumber'];
+        findByPhoneNumber = method(conditions, null, {});
+      }
+      // make the query
+      return Promise.all([findByHolderId, findByPhoneNumber])
+      .spread(function(userById, user) {
+        if (userById) {
+          if (user) {
+            if (userById._id.toString() !== user._id.toString()) {
+              return Promise.reject(new Error('The phoneNumber is already registered'));
+            }
+          }
+          assignUserData(appType, userById, data);
+          return userById.save();
+        } else {
+          if (user) {
+            assignUserData(appType, user, data);
+            return user.save();
+          } else {
+            const user = {};
+            assignUserData(appType, user, data);
+            const userCreate = getModelMethodPromise(schemaManager, 'UserModel', 'create');
+            return userCreate.then(function(method) {
+              const opts = {};
+              return method([user], opts).spread(function(user) {
+                return user;
+              });
+            });
           }
         }
-        assignUserData(appType, userById, data);
-        return userById.save();
-      } else {
-        if (user) {
-          assignUserData(appType, user, data);
-          return user.save();
-        } else {
-          const user = {};
-          assignUserData(appType, user, data);
-          const userCreate = getModelMethodPromise(schemaManager, 'UserModel', 'create');
-          return userCreate.then(function(method) {
-            const opts = {};
-            return method([user], opts).spread(function(user) {
-              return user;
-            });
-          });
-        }
-      }
-    })
-  })
-  .then(function(user) {
+      })
+    });
+  }
+
+  p = p.then(function(user) {
     if (user && lodash.isFunction(user.toJSON)) {
       user = user.toJSON();
     }
     return lodash.assign(packet, { user });
   });
+
   return p;
 }
 
