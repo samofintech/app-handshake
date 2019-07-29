@@ -78,10 +78,15 @@ var mappings = [
           data: req.body
         }
       },
-      example: {
-        key: "UqR32OQ3S4arU3KalHbz9A",
-        otp: "1543"
-      },
+      examples: [
+        {
+          path: '/auth/verification-code',
+          body: {
+            key: "UqR32OQ3S4arU3KalHbz9A",
+            otp: "1543"
+          }
+        }
+      ],
     },
     serviceName: 'app-handshake/handler',
     methodName: 'verificationCode',
@@ -175,10 +180,14 @@ var mappings = [
     path: ['/auth/revoke-token', '/auth/revoke-token/:appType'],
     method: 'POST',
     input: {
-      example: {
-        appType: 'agentApp',
-        phoneNumber: '+84999999999'
-      },
+      examples: [
+        {
+          path: '/auth/revoke-token',
+          body: {
+            phoneNumber: '+84999999999'
+          }
+        }
+      ],
       transform: function(req) {
         return {
           appType: req.params.appType || req.get('X-App-Type') || 'agent',
