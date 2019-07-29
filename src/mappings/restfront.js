@@ -165,15 +165,17 @@ var mappings = [
     path: '/auth/update-user',
     method: 'POST',
     input: {
-      example: {
-        appType: "agentApp",
-        userId: "5d2c53f6cbc31a7849913058",
-        firstName: "Doe",
-        lastName: "John",
-        phoneNumber: "+84999999999",
-        email: "john.doe@gmail.com",
-        activated: true,
-        deleted: false,
+      examples: {
+        "ok": {
+          appType: "agentApp",
+          holderId: "5d2c53f6cbc31a7849913058",
+          firstName: "Doe",
+          lastName: "John",
+          phoneNumber: "+84999999999",
+          email: "john.doe@gmail.com",
+          activated: true,
+          deleted: false,
+        },
       },
       transform: function(req) {
         return {

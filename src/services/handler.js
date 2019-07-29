@@ -568,14 +568,16 @@ function updateUser (packet = {}) {
   if (!data) {
     return Promise.reject(new Error('data is null'));
   }
-  if (!data['holderId'] && !data['phoneNumber']) {
-    return Promise.reject(new Error('holderId/phoneNumber expected'));
-  }
   const appType = sanitizeAppType((data && data.appType) || 'agentApp');
   if (appType == null) {
     return Promise.reject(new Error(util.format('Unsupported appType [%s]', appType)));
   }
-  return Promise.resolve().then(function() {
+  if (appType === 'agentApp') {
+    if (!data['holderId'] && !data['phoneNumber']) {
+      return Promise.reject(new Error('[agentApp]: holderId/phoneNumber expected'));
+    }
+  }
+  let p = Promise.resolve().then(function() {
     return getModelMethodPromise(schemaManager, 'UserModel', 'findOne');
   })
   .then(function(method) {
@@ -633,6 +635,7 @@ function updateUser (packet = {}) {
     }
     return lodash.assign(packet, { user });
   });
+  return p;
 }
 
 const MIRROR_USER_FIELDS = ['firstName', 'lastName', 'email', 'activated', 'deleted'];
