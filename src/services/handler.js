@@ -94,25 +94,22 @@ function Handler(params = {}) {
   }
 
   this.register = function (packet) {
-    const appType = sanitizeAppType(packet.appType);
-    if (appType == null) {
-      return Promise.reject(new Error(util.format('Unsupported appType [%s]', packet.appType)));
-    }
-    packet.appType = appType;
-    if (appType === APPTYPE_ADMIN) {
+    return validateAppType(packet).then(function(packet) {
+      if (packet.appType === APPTYPE_ADMIN) {
+        return Promise.resolve(packet)
+          .then(attachServices)
+          .then(loginAdminApp)
+          .then(detachServices);
+      }
       return Promise.resolve(packet)
         .then(attachServices)
-        .then(loginAdminApp)
+        .then(upsertDevice)
+        .then(validateUser)
+        .then(generateOTP)
+        .then(sendOTP)
+        .then(registerEnd)
         .then(detachServices);
-    }
-    return Promise.resolve(packet)
-      .then(attachServices)
-      .then(upsertDevice)
-      .then(validateUser)
-      .then(generateOTP)
-      .then(sendOTP)
-      .then(registerEnd)
-      .then(detachServices);
+    })
   }
 
   this.verificationCode = function (packet) {
@@ -123,36 +120,21 @@ function Handler(params = {}) {
   }
 
   this.refreshToken = function (packet) {
-    const appType = sanitizeAppType(packet.appType);
-    if (appType == null) {
-      return Promise.reject(new Error(util.format('Unsupported appType [%s]', packet.appType)));
-    }
-    packet.appType = appType;
-    return Promise.resolve(packet)
+    return validateAppType(packet)
       .then(attachServices)
       .then(refreshToken)
       .then(detachServices);
   }
 
   this.revokeToken = function (packet) {
-    const appType = sanitizeAppType(packet.appType);
-    if (appType == null) {
-      return Promise.reject(new Error(util.format('Unsupported appType [%s]', packet.appType)));
-    }
-    packet.appType = appType;
-    return Promise.resolve(packet)
+    return validateAppType(packet)
       .then(attachServices)
       .then(revokeToken)
       .then(detachServices);
   }
 
   this.updateUser = function (packet) {
-    const appType = sanitizeAppType(packet.appType);
-    if (appType == null) {
-      return Promise.reject(new Error(util.format('Unsupported appType [%s]', packet.appType)));
-    }
-    packet.appType = appType;
-    return Promise.resolve(packet)
+    return validateAppType(packet)
       .then(attachServices)
       .then(updateUser)
       .then(detachServices);
