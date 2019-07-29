@@ -11,8 +11,16 @@ function Bcryptor ({ sandboxConfig }) {
     return bcrypt.hash(password, saltRounds);
   }
 
+  this.hashSync = function(password) {
+    return bcrypt.hashSync(password, saltRounds);
+  }
+
   this.compare = function(password, hashPassword) {
     return bcrypt.compare(password, hashPassword);
+  }
+
+  this.compareSync = function(password, hashPassword) {
+    return bcrypt.compareSync(password, hashPassword);
   }
 }
 

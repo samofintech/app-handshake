@@ -583,13 +583,9 @@ function refreshToken (packet = {}) {
 }
 
 function updateUser (packet = {}) {
-  const { schemaManager, config, data } = packet;
+  const { bcryptor, schemaManager, config, appType, data } = packet;
   if (!data) {
     return Promise.reject(new Error('data is null'));
-  }
-  const appType = sanitizeAppType((data && data.appType) || 'agentApp');
-  if (appType == null) {
-    return Promise.reject(new Error(util.format('Unsupported appType [%s]', appType)));
   }
 
   let p = getModelMethodPromise(schemaManager, 'UserModel', 'findOne');
@@ -623,14 +619,17 @@ function updateUser (packet = {}) {
             }
           }
           assignUserData(appType, byHolderId, data);
+          assignUserPassword(appType, byHolderId, data, bcryptor);
           return byHolderId.save();
         } else {
           if (byUsername) {
             assignUserData(appType, byUsername, data);
+            assignUserPassword(appType, byUsername, data, bcryptor);
             return byUsername.save();
           } else {
             const user = {};
             assignUserData(appType, user, data);
+            assignUserPassword(appType, user, data, bcryptor);
             const userCreate = getModelMethodPromise(schemaManager, 'UserModel', 'create');
             return userCreate.then(function(method) {
               const opts = {};
@@ -739,6 +738,16 @@ function assignUserData (appType, user = {}, data = {}) {
 
   if (lodash.isString(data.holderId) && data.holderId != user[appType].holderId) {
     user[appType].holderId = new mongoose.Types.ObjectId(data.holderId);
+  }
+  return user;
+}
+
+function assignUserPassword(appType, user = {}, data = {}, bcryptor) {
+  if (appType === 'adminApp') {
+    if (lodash.isString(data.password) && !lodash.isEmpty(data.password)) {
+      user[appType].password = bcryptor.hashSync(data.password);
+      user[appType].refreshToken = undefined;
+    }
   }
   return user;
 }
