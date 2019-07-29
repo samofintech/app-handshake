@@ -575,6 +575,56 @@ function updateUser (packet = {}) {
 
   let p = getModelMethodPromise(schemaManager, 'UserModel', 'findOne');
 
+  if (appType === 'adminApp') {
+    if (!data['holderId'] && !data['username']) {
+      return Promise.reject(new Error('[adminApp]: holderId/username expected'));
+    }
+    p = p.then(function(method) {
+      // query an user by the holderId
+      let findByHolderId = Promise.resolve();
+      if (data['holderId']) {
+        const conditions = {};
+        conditions[[appType, 'holderId'].join(".")] = data['holderId'];
+        findByHolderId = method(conditions, null, {});
+      }
+      // query an user by the username
+      let findByUsername = Promise.resolve();
+      if (data['username']) {
+        const conditions = {};
+        conditions[[appType, 'username'].join(".")] = data['username'];
+        findByUsername = method(conditions, null, {});
+      }
+      // make the query
+      return Promise.all([findByHolderId, findByUsername])
+      .spread(function(byHolderId, byUsername) {
+        if (byHolderId) {
+          if (byUsername) {
+            if (byHolderId._id.toString() !== byUsername._id.toString()) {
+              return Promise.reject(new Error('The username is already registered'));
+            }
+          }
+          assignUserData(appType, byHolderId, data);
+          return byHolderId.save();
+        } else {
+          if (byUsername) {
+            assignUserData(appType, byUsername, data);
+            return byUsername.save();
+          } else {
+            const user = {};
+            assignUserData(appType, user, data);
+            const userCreate = getModelMethodPromise(schemaManager, 'UserModel', 'create');
+            return userCreate.then(function(method) {
+              const opts = {};
+              return method([user], opts).spread(function(user) {
+                return user;
+              });
+            });
+          }
+        }
+      })
+    });
+  }
+
   if (appType === 'agentApp') {
     if (!data['holderId'] && !data['phoneNumber']) {
       return Promise.reject(new Error('[agentApp]: holderId/phoneNumber expected'));
@@ -649,12 +699,25 @@ function assignUserData (appType, user = {}, data = {}) {
     }
   });
   user[appType] = user[appType] || {};
-  if (lodash.isString(data.phoneNumber) && data.phoneNumber != user[appType].phoneNumber) {
-    // change the phoneNumber -> verified <- false, delete refreshToken
-    user[appType].verified = false;
-    user[appType].phoneNumber = data.phoneNumber;
-    user[appType].phone = data.phone;
+
+  if (appType === 'adminApp') {
+    if (lodash.isString(data.username) && data.username != user[appType].username) {
+      // change the phoneNumber -> verified <- false, delete refreshToken
+      user[appType].username = data.username;
+      user[appType].refreshToken = undefined;
+    }
   }
+
+  if (appType === 'agentApp') {
+    if (lodash.isString(data.phoneNumber) && data.phoneNumber != user[appType].phoneNumber) {
+      // change the phoneNumber -> verified <- false, delete refreshToken
+      user[appType].phone = data.phone;
+      user[appType].phoneNumber = data.phoneNumber;
+      user[appType].refreshToken = undefined;
+      user[appType].verified = false;
+    }
+  }
+
   if (lodash.isString(data.holderId) && data.holderId != user[appType].holderId) {
     user[appType].holderId = new mongoose.Types.ObjectId(data.holderId);
   }
