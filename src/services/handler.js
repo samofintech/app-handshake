@@ -22,7 +22,7 @@ function Handler(params = {}) {
   const packageName = params.packageName || 'app-handshake';
   const blockRef = chores.getBlockRef(__filename, packageName);
 
-  const { oauthApi, sandboxRegistry, schemaManager } = params;
+  const { bcryptor, oauthApi, sandboxRegistry, schemaManager } = params;
 
   const config = lodash.get(params, ['sandboxConfig'], {});
   config.otpExpiredIn = config.otpExpiredIn || 15 * 60;
@@ -80,7 +80,7 @@ function Handler(params = {}) {
     serviceSelector = new ServiceSelector({ serviceResolver, sandboxRegistry });
   }
 
-  const ctx = { L, T, packageName, config, schemaManager, serviceSelector, oauthApi };
+  const ctx = { L, T, packageName, config, schemaManager, serviceSelector, oauthApi, bcryptor };
 
   function attachServices (packet) {
     return lodash.assign(packet, ctx);
@@ -139,6 +139,7 @@ function Handler(params = {}) {
 };
 
 Handler.referenceHash = {
+  bcryptor: 'bcryptor',
   oauthApi: 'oauthApi',
   sandboxRegistry: 'devebot/sandboxRegistry',
   schemaManager: 'app-datastore/schemaManager'
@@ -169,7 +170,39 @@ function loginProcedure (packet = {}, reqOpts = {}) {
     return Promise.reject(new Error(util.format('Unsupported appType [%s]', appType)));
   }
   return Promise.resolve().then(function() {
-    return lodash.assign(packet, {});
+    return getModelMethodPromise(schemaManager, 'UserModel', 'findOne');
+  })
+  .then(function(method) {
+    const conditions = {};
+    conditions[[appType, "username"].join(".")] = data.username;
+    return method(conditions, null, {});
+  })
+  .then(function(user) {
+    if (!user) {
+      const err = new Error("user not found");
+      err.payload = {
+        username: data.username
+      }
+      return Promise.reject(err);
+    }
+    if (user.activated == false) {
+      const err = new Error("user is locked");
+      err.payload = {
+        username: data.username
+      }
+      return Promise.reject(err);
+    }
+    if (user.deleted == true) {
+      const err = new Error("user is deleted");
+      err.payload = {
+        username: data.username
+      }
+      return Promise.reject(err);
+    }
+    return user;
+  })
+  .then(function(user) {
+    return lodash.assign(packet, { user });
   });
 }
 

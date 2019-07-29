@@ -7,8 +7,12 @@ function Bcryptor ({ sandboxConfig }) {
   const bcrypt = useNative(bcryptjs);
   const saltRounds = lodash.get(sandboxConfig, ['saltRounds'], 7);
 
-  this.hash = function(plaintextPasswd) {
-    return bcrypt.hash(plaintextPasswd, saltRounds);
+  this.hash = function(password) {
+    return bcrypt.hash(password, saltRounds);
+  }
+
+  this.compare = function(password, hashPassword) {
+    return bcrypt.compare(password, hashPassword);
   }
 }
 
