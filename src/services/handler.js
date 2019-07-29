@@ -717,21 +717,29 @@ function assignUserData (appType, user = {}, data = {}, bcryptor) {
 
 function revokeToken (packet = {}) {
   const { schemaManager, config, appType, data } = packet;
-  return Promise.resolve().then(function() {
-    return getModelMethodPromise(schemaManager, 'UserModel', 'findOne');
-  })
-  .then(function(method) {
-    const conditions = {};
-    conditions[[appType, "phoneNumber"].join(".")] = data.phoneNumber;
-    return method(conditions, null, {});
-  })
-  .then(function(user) {
+  let p = getModelMethodPromise(schemaManager, 'UserModel', 'findOne');
+  if (appType === APPTYPE_ADMIN) {
+    p = p.then(function(method) {
+      const conditions = {};
+      conditions[[appType, "username"].join(".")] = data.username;
+      return method(conditions, null, {});
+    });
+  }
+  if (appType === APPTYPE_AGENT) {
+    p = p.then(function(method) {
+      const conditions = {};
+      conditions[[appType, "phoneNumber"].join(".")] = data.phoneNumber;
+      return method(conditions, null, {});
+    });
+  }
+  p = p.then(function(user) {
     if (user) {
-      user.refreshToken = null;
+      user[appType].refreshToken = undefined;
       return user.save();
     }
     return Promise.resolve({});
   });
+  return p;
 }
 
 function sanitizeAppType(appType) {
