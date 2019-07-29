@@ -16,6 +16,9 @@ const otp = require('../utils/otp-generator');
 const otpDefaultOpts = { alphabets: false, upperCase: false, specialChars: false };
 const mongoose = require('app-datastore').require('mongoose');
 
+const APPTYPE_ADMIN = 'adminApp';
+const APPTYPE_AGENT = 'agentApp';
+
 function Handler(params = {}) {
   const L = params.loggingFactory.getLogger();
   const T = params.loggingFactory.getTracer();
@@ -96,7 +99,7 @@ function Handler(params = {}) {
       return Promise.reject(new Error(util.format('Unsupported appType [%s]', packet.appType)));
     }
     packet.appType = appType;
-    if (appType === 'adminApp') {
+    if (appType === APPTYPE_ADMIN) {
       return Promise.resolve(packet)
         .then(attachServices)
         .then(loginAdminApp)
@@ -543,14 +546,14 @@ function refreshToken (packet = {}) {
     const expiredIn = config.tokenExpiredIn;
     const expiredTime = now.add(config.tokenExpiredIn, 'seconds');
     let constraints = { appType, expiredIn, expiredTime };
-    if (appType === 'adminApp') {
+    if (appType === APPTYPE_ADMIN) {
       constraints = lodash.assign(constraints, {
         email: user[appType].email,
         username: user[appType].username,
         permissions: user[appType].permissions || [],
       });
     }
-    if (appType === 'agentApp') {
+    if (appType === APPTYPE_AGENT) {
       constraints = lodash.assign(constraints, {
         phoneNumber: user[appType].phoneNumber,
       });
@@ -573,7 +576,7 @@ function updateUser (packet = {}) {
 
   let p = getModelMethodPromise(schemaManager, 'UserModel', 'findOne');
 
-  if (appType === 'adminApp') {
+  if (appType === APPTYPE_ADMIN) {
     if (!data['holderId'] && !data['username']) {
       return Promise.reject(new Error('[adminApp]: holderId/username expected'));
     }
@@ -623,7 +626,7 @@ function updateUser (packet = {}) {
     });
   }
 
-  if (appType === 'agentApp') {
+  if (appType === APPTYPE_AGENT) {
     if (!data['holderId'] && !data['phoneNumber']) {
       return Promise.reject(new Error('[agentApp]: holderId/phoneNumber expected'));
     }
@@ -702,7 +705,7 @@ function assignUserData (appType, user = {}, data = {}, bcryptor) {
     user[appType].permissions = data.permissions;
   }
 
-  if (appType === 'adminApp') {
+  if (appType === APPTYPE_ADMIN) {
     if (lodash.isString(data.username) && data.username != user[appType].username) {
       // change the phoneNumber -> verified <- false, delete refreshToken
       user[appType].username = data.username;
@@ -714,7 +717,7 @@ function assignUserData (appType, user = {}, data = {}, bcryptor) {
     }
   }
 
-  if (appType === 'agentApp') {
+  if (appType === APPTYPE_AGENT) {
     if (lodash.isString(data.phoneNumber) && data.phoneNumber != user[appType].phoneNumber) {
       // change the phoneNumber -> verified <- false, delete refreshToken
       user[appType].phone = data.phone;
@@ -750,11 +753,11 @@ function revokeToken (packet = {}) {
 }
 
 function sanitizeAppType(appType) {
-  if (['sales', 'agent', 'agent-app', 'agentApp'].indexOf(appType) >= 0) {
-    return 'agentApp';
-  }
   if (['adminApp', 'admin', 'cc', 'operation'].indexOf(appType) >= 0) {
-    return 'adminApp';
+    return APPTYPE_ADMIN;
+  }
+  if (['agentApp', 'agent', 'agent-app', 'sales'].indexOf(appType) >= 0) {
+    return APPTYPE_AGENT;
   }
   return null;
 }
