@@ -182,11 +182,7 @@ function getModelMethodPromise (schemaManager, modelName, methodName) {
 }
 
 function loginAdminApp (packet = {}) {
-  const { bcryptor, oauthApi, schemaManager, config, data } = packet;
-  const appType = sanitizeAppType((data && data.appType) || 'adminApp');
-  if (appType == null) {
-    return Promise.reject(new Error(util.format('Unsupported appType [%s]', appType)));
-  }
+  const { bcryptor, oauthApi, schemaManager, config, appType, data } = packet;
   return Promise.resolve().then(function() {
     return getModelMethodPromise(schemaManager, 'UserModel', 'findOne');
   })
@@ -228,7 +224,7 @@ function loginAdminApp (packet = {}) {
     }
     return bcryptor.compare(data.password, encPasswd).then(function(matched) {
       if (matched) {
-        lodash.assign(user[appType], { refreshToken: genKey() });
+        lodash.assign(user[appType], { verified: true, refreshToken: genKey() });
         return user.save();
       } else {
         return Promise.reject(new Error("password is mismatched"));
@@ -282,11 +278,7 @@ function upsertDevice (packet = {}) {
 }
 
 function upsertUser (packet = {}) {
-  const { schemaManager, config, data, device } = packet;
-  const appType = sanitizeAppType((data && data.appType) || 'agentApp');
-  if (appType == null) {
-    return Promise.reject(new Error(util.format('Unsupported appType [%s]', appType)));
-  }
+  const { schemaManager, config, appType, data, device } = packet;
   return Promise.resolve().then(function() {
     return getModelMethodPromise(schemaManager, 'UserModel', 'findOneAndUpdate');
   })
@@ -315,11 +307,7 @@ function upsertUser (packet = {}) {
 }
 
 function validateUser (packet = {}) {
-  const { schemaManager, config, data, device } = packet;
-  const appType = sanitizeAppType((data && data.appType) || 'agentApp');
-  if (appType == null) {
-    return Promise.reject(new Error(util.format('Unsupported appType [%s]', appType)));
-  }
+  const { schemaManager, config, appType, data, device } = packet;
   return Promise.resolve().then(function() {
     return getModelMethodPromise(schemaManager, 'UserModel', 'findOne');
   })
@@ -378,11 +366,7 @@ function validateUser (packet = {}) {
 }
 
 function generateOTP (packet = {}) {
-  const { schemaManager, config, data, user, device } = packet;
-  const appType = sanitizeAppType((data && data.appType) || 'agentApp');
-  if (appType == null) {
-    return Promise.reject(new Error(util.format('Unsupported appType [%s]', appType)));
-  }
+  const { schemaManager, config, appType, data, user, device } = packet;
   return Promise.resolve().then(function() {
     return getModelMethodPromise(schemaManager, 'VerificationModel', 'findOne');
   })
@@ -525,7 +509,7 @@ function verifyOTP (packet = {}) {
       access_token: oauthApi.createAppAccessToken({
         user,
         constraints: lodash.pick(verification, [
-          "appType", "phoneNumber", "expiredIn", "expiredTime"
+          "appType", "expiredIn", "expiredTime", "phoneNumber"
         ])
       }),
       refresh_token: user[verification.appType].refreshToken,
@@ -536,11 +520,7 @@ function verifyOTP (packet = {}) {
 }
 
 function refreshToken (packet = {}) {
-  const { schemaManager, oauthApi, config, data } = packet;
-  const appType = sanitizeAppType((data && data.appType) || 'agentApp');
-  if (appType == null) {
-    return Promise.reject(new Error(util.format('Unsupported appType [%s]', appType)));
-  }
+  const { schemaManager, oauthApi, config, appType, data } = packet;
   // search user.agentApp
   return Promise.resolve()
   .then(function() {
@@ -554,29 +534,32 @@ function refreshToken (packet = {}) {
   })
   .then(function(user) {
     if (!user) {
-      return Promise.reject(new Error("user not found"));
+      return Promise.reject(new Error("refreshToken not found"));
     }
     if (user[appType].verified == false) {
       return Promise.reject(new Error("user has not be verified"));
     }
     const now = moment();
+    const expiredIn = config.tokenExpiredIn;
     const expiredTime = now.add(config.tokenExpiredIn, 'seconds');
-    const verification = {
-      appType: appType,
-      phoneNumber: user[appType].phoneNumber,
-      expiredIn: config.tokenExpiredIn,
-      expiredTime: expiredTime
+    let constraints = { appType, expiredIn, expiredTime };
+    if (appType === 'adminApp') {
+      constraints = lodash.assign(constraints, {
+        email: user[appType].email,
+        username: user[appType].username,
+        permissions: user[appType].permissions || [],
+      });
+    }
+    if (appType === 'agentApp') {
+      constraints = lodash.assign(constraints, {
+        phoneNumber: user[appType].phoneNumber,
+      });
     }
     const auth = {
       token_type: "Bearer",
-      access_token: oauthApi.createAppAccessToken({
-        user,
-        constraints: lodash.pick(verification, [
-          "appType", "phoneNumber", "expiredIn", "expiredTime"
-        ])
-      }),
-      refresh_token: user[verification.appType].refreshToken,
-      expires_in: verification.expiredIn,
+      access_token: oauthApi.createAppAccessToken({ user, constraints }),
+      refresh_token: user[appType].refreshToken,
+      expires_in: expiredIn,
     }
     return lodash.assign(packet, { data: { auth } });
   });
@@ -618,18 +601,15 @@ function updateUser (packet = {}) {
               return Promise.reject(new Error('The username is already registered'));
             }
           }
-          assignUserData(appType, byHolderId, data);
-          assignUserPassword(appType, byHolderId, data, bcryptor);
+          assignUserData(appType, byHolderId, data, bcryptor);
           return byHolderId.save();
         } else {
           if (byUsername) {
-            assignUserData(appType, byUsername, data);
-            assignUserPassword(appType, byUsername, data, bcryptor);
+            assignUserData(appType, byUsername, data, bcryptor);
             return byUsername.save();
           } else {
             const user = {};
-            assignUserData(appType, user, data);
-            assignUserPassword(appType, user, data, bcryptor);
+            assignUserData(appType, user, data, bcryptor);
             const userCreate = getModelMethodPromise(schemaManager, 'UserModel', 'create');
             return userCreate.then(function(method) {
               const opts = {};
@@ -676,15 +656,15 @@ function updateUser (packet = {}) {
               return Promise.reject(new Error('The phoneNumber is already registered'));
             }
           }
-          assignUserData(appType, userById, data);
+          assignUserData(appType, userById, data, bcryptor);
           return userById.save();
         } else {
           if (user) {
-            assignUserData(appType, user, data);
+            assignUserData(appType, user, data, bcryptor);
             return user.save();
           } else {
             const user = {};
-            assignUserData(appType, user, data);
+            assignUserData(appType, user, data, bcryptor);
             const userCreate = getModelMethodPromise(schemaManager, 'UserModel', 'create');
             return userCreate.then(function(method) {
               const opts = {};
@@ -710,7 +690,7 @@ function updateUser (packet = {}) {
 
 const MIRROR_USER_FIELDS = ['firstName', 'lastName', 'email', 'activated', 'deleted'];
 
-function assignUserData (appType, user = {}, data = {}) {
+function assignUserData (appType, user = {}, data = {}, bcryptor) {
   lodash.forEach(MIRROR_USER_FIELDS, function(field) {
     if (field in data) {
       user[field] = data[field];
@@ -718,10 +698,18 @@ function assignUserData (appType, user = {}, data = {}) {
   });
   user[appType] = user[appType] || {};
 
+  if (lodash.isArray(data.permissions) && !lodash.isEmpty(data.permissions)) {
+    user[appType].permissions = data.permissions;
+  }
+
   if (appType === 'adminApp') {
     if (lodash.isString(data.username) && data.username != user[appType].username) {
       // change the phoneNumber -> verified <- false, delete refreshToken
       user[appType].username = data.username;
+      user[appType].refreshToken = undefined;
+    }
+    if (lodash.isString(data.password) && !lodash.isEmpty(data.password)) {
+      user[appType].password = bcryptor.hashSync(data.password);
       user[appType].refreshToken = undefined;
     }
   }
@@ -742,22 +730,8 @@ function assignUserData (appType, user = {}, data = {}) {
   return user;
 }
 
-function assignUserPassword(appType, user = {}, data = {}, bcryptor) {
-  if (appType === 'adminApp') {
-    if (lodash.isString(data.password) && !lodash.isEmpty(data.password)) {
-      user[appType].password = bcryptor.hashSync(data.password);
-      user[appType].refreshToken = undefined;
-    }
-  }
-  return user;
-}
-
 function revokeToken (packet = {}) {
-  const { schemaManager, config, data } = packet;
-  const appType = sanitizeAppType((data && data.appType) || 'agentApp');
-  if (appType == null) {
-    return Promise.reject(new Error(util.format('Unsupported appType [%s]', appType)));
-  }
+  const { schemaManager, config, appType, data } = packet;
   return Promise.resolve().then(function() {
     return getModelMethodPromise(schemaManager, 'UserModel', 'findOne');
   })
@@ -785,7 +759,7 @@ function sanitizeAppType(appType) {
   return null;
 }
 
-function checkAppType (packet) {
+function validateAppType (packet) {
   const appType = sanitizeAppType(packet.appType);
   if (appType == null) {
     return Promise.reject(new Error(util.format('Unsupported appType [%s]', packet.appType)));
