@@ -19,6 +19,7 @@ module.exports = {
       email: { type: String },
       username: { type: String },
       password: { type: String },
+      permissions: [ String ],
       holderId: { type: Schema.Types.ObjectId },
       verified: { type: Boolean, default: false },
       refreshToken: { type: String }

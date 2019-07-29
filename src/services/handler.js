@@ -227,7 +227,12 @@ function checkInProcedure (packet = {}) {
       token_type: "Bearer",
       access_token: oauthApi.createAppAccessToken({
         user,
-        constraints: { appType, expiredIn, expiredTime },
+        constraints: {
+          appType, expiredIn, expiredTime,
+          email: user[appType].email,
+          username: user[appType].username,
+          permissions: user[appType].permissions || [],
+        },
       }),
       refresh_token: user[appType].refreshToken,
       expires_in: expiredIn,
