@@ -90,14 +90,18 @@ function Handler(params = {}) {
     return lodash.omit(packet, lodash.keys(ctx));
   }
 
-  this.checkIn = function (packet) {
-    return Promise.resolve(packet)
-      .then(attachServices)
-      .then(checkInProcedure)
-      .then(detachServices);
-  }
-
   this.register = function (packet) {
+    const appType = sanitizeAppType(packet.appType);
+    if (appType == null) {
+      return Promise.reject(new Error(util.format('Unsupported appType [%s]', packet.appType)));
+    }
+    packet.appType = appType;
+    if (appType === 'adminApp') {
+      return Promise.resolve(packet)
+        .then(attachServices)
+        .then(loginAdminApp)
+        .then(detachServices);
+    }
     return Promise.resolve(packet)
       .then(attachServices)
       .then(upsertDevice)
@@ -116,6 +120,11 @@ function Handler(params = {}) {
   }
 
   this.refreshToken = function (packet) {
+    const appType = sanitizeAppType(packet.appType);
+    if (appType == null) {
+      return Promise.reject(new Error(util.format('Unsupported appType [%s]', packet.appType)));
+    }
+    packet.appType = appType;
     return Promise.resolve(packet)
       .then(attachServices)
       .then(refreshToken)
@@ -123,6 +132,11 @@ function Handler(params = {}) {
   }
 
   this.revokeToken = function (packet) {
+    const appType = sanitizeAppType(packet.appType);
+    if (appType == null) {
+      return Promise.reject(new Error(util.format('Unsupported appType [%s]', packet.appType)));
+    }
+    packet.appType = appType;
     return Promise.resolve(packet)
       .then(attachServices)
       .then(revokeToken)
@@ -130,6 +144,11 @@ function Handler(params = {}) {
   }
 
   this.updateUser = function (packet) {
+    const appType = sanitizeAppType(packet.appType);
+    if (appType == null) {
+      return Promise.reject(new Error(util.format('Unsupported appType [%s]', packet.appType)));
+    }
+    packet.appType = appType;
     return Promise.resolve(packet)
       .then(attachServices)
       .then(updateUser)
@@ -162,7 +181,7 @@ function getModelMethodPromise (schemaManager, modelName, methodName) {
   return Promise.resolve(Promise.promisify(model[methodName], { context: model }));
 }
 
-function checkInProcedure (packet = {}) {
+function loginAdminApp (packet = {}) {
   const { bcryptor, oauthApi, schemaManager, config, data } = packet;
   const appType = sanitizeAppType((data && data.appType) || 'adminApp');
   if (appType == null) {
@@ -751,10 +770,19 @@ function sanitizeAppType(appType) {
   if (['sales', 'agent', 'agent-app', 'agentApp'].indexOf(appType) >= 0) {
     return 'agentApp';
   }
-  if (['cc', 'operation', 'adminApp'].indexOf(appType) >= 0) {
+  if (['adminApp', 'admin', 'cc', 'operation'].indexOf(appType) >= 0) {
     return 'adminApp';
   }
   return null;
+}
+
+function checkAppType (packet) {
+  const appType = sanitizeAppType(packet.appType);
+  if (appType == null) {
+    return Promise.reject(new Error(util.format('Unsupported appType [%s]', packet.appType)));
+  }
+  packet.appType = appType;
+  return Promise.resolve(packet);
 }
 
 function sanitizePhone (data = {}, config = {}) {

@@ -4,52 +4,12 @@ var lodash = Devebot.require('lodash');
 
 var mappings = [
   {
-    path: '/auth/check-in',
+    path: ['/auth/login', '/auth/login/:appType'],
     method: 'POST',
     input: {
       transform: function(req) {
         return {
-          data: req.body
-        }
-      },
-      examples: {
-        ok: {
-          "appType": "adminApp",
-          "username": "adm",
-          "password": "changeme",
-        }
-      }
-    },
-    serviceName: 'app-handshake/handler',
-    methodName: 'checkIn',
-    output: {
-      transform: function(result, req) {
-        const payload = {
-          headers: {
-            "X-Return-Code": result.code || 0
-          },
-          body: lodash.get(result, "data")
-        };
-        return payload;
-      }
-    },
-    error: {
-      transform: function(err, req) {
-        return {
-          statusCode: 500,
-          body: {
-            message: err.message
-          }
-        };
-      },
-    },
-  },
-  {
-    path: '/auth/login',
-    method: 'POST',
-    input: {
-      transform: function(req) {
-        return {
+          appType: req.params.appType || req.get('X-App-Type') || 'agent',
           data: req.body
         }
       },
@@ -57,23 +17,33 @@ var mappings = [
       validate: function(data) {
         return true;
       },
-      examples: {
-        ok: {
-          "appType": "agent",
-          "version": "1.0.0",
-          "org": "E621E1F8-C36C-495A-93FC-0C247A3E6FGG",
-          "device": {
-            "imei": "990000862471854",
-            "platform": "iOS"
-          },
-          "phoneNumber": "+12055555555",
-          "phone": {
-            "country": "US",
-            "countryCode": "+1",
-            "number": "2055555555"
+      examples: [
+        {
+          path: '/auth/login',
+          body: {
+            "appType": "agent",
+            "version": "1.0.0",
+            "org": "E621E1F8-C36C-495A-93FC-0C247A3E6FGG",
+            "device": {
+              "imei": "990000862471854",
+              "platform": "iOS"
+            },
+            "phoneNumber": "+12055555555",
+            "phone": {
+              "country": "US",
+              "countryCode": "+1",
+              "number": "2055555555"
+            }
           }
-        }
-      }
+        },
+        {
+          path: "/auth/login/admin",
+          body: {
+            "username": "adm",
+            "password": "changeme",
+          }
+        },
+      ]
     },
     serviceName: 'app-handshake/handler',
     methodName: 'register',
@@ -128,11 +98,12 @@ var mappings = [
     }
   },
   {
-    path: '/auth/refresh-token',
+    path: ['/auth/refresh-token', '/auth/refresh-token/:appType'],
     method: 'POST',
     input: {
       transform: function(req) {
         return {
+          appType: req.params.appType || req.get('X-App-Type') || 'agent',
           data: req.body
         }
       },
@@ -162,7 +133,7 @@ var mappings = [
     }
   },
   {
-    path: '/auth/update-user',
+    path: ['/auth/update-user', '/auth/update-user/:appType'],
     method: 'POST',
     input: {
       examples: {
@@ -179,6 +150,7 @@ var mappings = [
       },
       transform: function(req) {
         return {
+          appType: req.params.appType || req.get('X-App-Type') || 'agent',
           data: req.body
         }
       }
@@ -198,7 +170,7 @@ var mappings = [
     }
   },
   {
-    path: '/auth/revoke-token',
+    path: ['/auth/revoke-token', '/auth/revoke-token/:appType'],
     method: 'POST',
     input: {
       example: {
@@ -207,6 +179,7 @@ var mappings = [
       },
       transform: function(req) {
         return {
+          appType: req.params.appType || req.get('X-App-Type') || 'agent',
           data: req.body
         }
       }
