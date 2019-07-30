@@ -2,6 +2,10 @@
 
 var lodash = Devebot.require('lodash');
 
+function extractAppType (req) {
+  return req.params.appType || req.get('X-App-Type') || 'agent';
+}
+
 var mappings = [
   {
     path: ['/auth/login', '/auth/login/:appType'],
@@ -9,7 +13,7 @@ var mappings = [
     input: {
       transform: function(req) {
         return {
-          appType: req.params.appType || req.get('X-App-Type') || 'agent',
+          appType: extractAppType(req),
           data: req.body
         }
       },
@@ -108,7 +112,7 @@ var mappings = [
     input: {
       transform: function(req) {
         return {
-          appType: req.params.appType || req.get('X-App-Type') || 'agent',
+          appType: extractAppType(req),
           data: req.body
         }
       },
@@ -157,7 +161,7 @@ var mappings = [
       ],
       transform: function(req) {
         return {
-          appType: req.params.appType || req.get('X-App-Type') || 'agent',
+          appType: extractAppType(req),
           data: req.body
         }
       }
@@ -190,7 +194,7 @@ var mappings = [
       ],
       transform: function(req) {
         return {
-          appType: req.params.appType || req.get('X-App-Type') || 'agent',
+          appType: extractAppType(req),
           data: req.body
         }
       }

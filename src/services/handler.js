@@ -506,7 +506,7 @@ function verifyOTP (packet = {}) {
 
 function refreshToken (packet = {}) {
   const { schemaManager, oauthApi, config, appType, data } = packet;
-  // search user.agentApp
+  // search user[appType].refreshToken
   return Promise.resolve()
   .then(function() {
     return getModelMethodPromise(schemaManager, 'UserModel', 'findOne');
