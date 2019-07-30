@@ -2,10 +2,6 @@
 
 var lodash = Devebot.require('lodash');
 
-function extractAppType (req) {
-  return req.params.appType || req.get('X-App-Type') || 'agent';
-}
-
 var mappings = [
   {
     path: ['/auth/login', '/auth/login/:appType'],
@@ -63,14 +59,7 @@ var mappings = [
       }
     },
     error: {
-      transform: function(err, req) {
-        return {
-          statusCode: 500,
-          body: {
-            message: err.message
-          }
-        };
-      },
+      transform: transformError,
     },
   },
   {
@@ -131,14 +120,7 @@ var mappings = [
       },
     },
     error: {
-      transform: function(err, req) {
-        return {
-          statusCode: 500,
-          body: {
-            message: err.message
-          }
-        };
-      },
+      transform: transformError,
     }
   },
   {
@@ -249,16 +231,27 @@ var mappings = [
       }
     },
     error: {
-      transform: function(err, req) {
-        return {
-          statusCode: 500,
-          body: {
-            message: err.message
-          }
-        };
-      },
+      transform: transformError,
     },
   },
 ]
 
 module.exports = mappings;
+
+function extractAppType (req) {
+  return req.params.appType || req.get('X-App-Type') || 'agent';
+}
+
+function transformError (err, req) {
+  const output = {
+    statusCode: err.statusCode || 500,
+    headers: {},
+    body: {
+      message: err.message
+    }
+  };
+  if (err.returnCode) {
+    output.headers['X-Return-Code'] = err.returnCode;
+  }
+  return output;
+}
