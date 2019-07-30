@@ -175,12 +175,15 @@ var mappings = [
     }
   },
   {
-    path: ['/util/update-user', '/util/update-user/:appType'],
+    path: [
+      '/auth/update-user', '/auth/update-user/:appType', //@Deprecated
+      '/util/synchronize-user', '/util/synchronize-user/:appType'
+    ],
     method: 'POST',
     input: {
       examples: [
         {
-          path: '/auth/update-user/agent',
+          path: '/util/synchronize-user/agent',
           body: {
             holderId: "5d2c53f6cbc31a7849913058",
             phoneNumber: "+84999999999",
