@@ -142,7 +142,40 @@ var mappings = [
     }
   },
   {
-    path: ['/auth/update-user', '/auth/update-user/:appType'],
+    path: ['/auth/revoke-token', '/auth/revoke-token/:appType'],
+    method: 'POST',
+    input: {
+      examples: [
+        {
+          path: '/auth/revoke-token',
+          body: {
+            phoneNumber: '+84999999999'
+          }
+        }
+      ],
+      transform: function(req) {
+        return {
+          appType: extractAppType(req),
+          data: req.body
+        }
+      }
+    },
+    serviceName: 'app-handshake/handler',
+    methodName: 'revokeToken',
+    output: {
+      transform: function(result, req) {
+        const payload = {
+          headers: {
+            "X-Return-Code": result.code || 0
+          },
+          body: lodash.get(result, "data")
+        };
+        return payload;
+      }
+    }
+  },
+  {
+    path: ['/util/update-user', '/util/update-user/:appType'],
     method: 'POST',
     input: {
       examples: [
@@ -168,39 +201,6 @@ var mappings = [
     },
     serviceName: 'app-handshake/handler',
     methodName: 'updateUser',
-    output: {
-      transform: function(result, req) {
-        const payload = {
-          headers: {
-            "X-Return-Code": result.code || 0
-          },
-          body: lodash.get(result, "data")
-        };
-        return payload;
-      }
-    }
-  },
-  {
-    path: ['/auth/revoke-token', '/auth/revoke-token/:appType'],
-    method: 'POST',
-    input: {
-      examples: [
-        {
-          path: '/auth/revoke-token',
-          body: {
-            phoneNumber: '+84999999999'
-          }
-        }
-      ],
-      transform: function(req) {
-        return {
-          appType: extractAppType(req),
-          data: req.body
-        }
-      }
-    },
-    serviceName: 'app-handshake/handler',
-    methodName: 'revokeToken',
     output: {
       transform: function(result, req) {
         const payload = {
