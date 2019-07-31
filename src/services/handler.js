@@ -718,20 +718,25 @@ function updateUser (packet = {}) {
 }
 
 function resetVerification (packet = {}) {
-  const { schemaManager, errorBuilder, config, appType, data, user, device } = packet;
+  const { schemaManager, errorBuilder, config, appType, data } = packet;
 
   let p = getModelMethodPromise(schemaManager, 'VerificationModel', 'findOne');
 
-  p = p.then(function(method) {
-    const conditions = {
-      appType: appType,
-      phoneNumber: data.phoneNumber
-    };
-    const opts = {
-      sort: { expiredTime: -1 }
+  if (appType === APPTYPE_AGENT) {
+    if (!lodash.isString(data.phoneNumber) || lodash.isEmpty(data.phoneNumber)) {
+      return Promise.reject(errorBuilder.createError('PhoneNumberMustBeNotNull'));
     }
-    return method(conditions, null, opts);
-  });
+    p = p.then(function(method) {
+      const conditions = {
+        appType: appType,
+        phoneNumber: data.phoneNumber
+      };
+      const opts = {
+        sort: { expiredTime: -1 }
+      }
+      return method(conditions, null, opts);
+    });
+  }
 
   p = p.then(function(verification) {
     if (verification) {
@@ -744,9 +749,9 @@ function resetVerification (packet = {}) {
 
   return p.then(function(verification) {
     if (verification) {
-      return lodash.assign(packet, { affected: 1 });
+      return lodash.assign(packet, { data: { affected: 1 } });
     } else {
-      return lodash.assign(packet, { affected: 0 });
+      return lodash.assign(packet, { data: { affected: 0 } });
     }
   });
 }
