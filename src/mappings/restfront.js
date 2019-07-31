@@ -48,7 +48,7 @@ var mappings = [
     serviceName: 'app-handshake/handler',
     methodName: 'register',
     output: {
-      transform: function(result, req) {
+      transform: function(result = {}, req) {
         const payload = {
           headers: {
             "X-Return-Code": result.code || 0
@@ -84,16 +84,19 @@ var mappings = [
     serviceName: 'app-handshake/handler',
     methodName: 'verificationCode',
     output: {
-      transform: function(result, req) {
+      transform: function(result = {}, req) {
         const payload = {
           headers: {
-            "X-Return-Code": result.code
+            "X-Return-Code": result.code || 0
           },
           body: lodash.get(result, "data")
         };
         return payload;
       }
-    }
+    },
+    error: {
+      transform: transformError,
+    },
   },
   {
     path: ['/auth/refresh-token', '/auth/refresh-token/:appType'],
@@ -109,10 +112,10 @@ var mappings = [
     serviceName: 'app-handshake/handler',
     methodName: 'refreshToken',
     output: {
-      transform: function(result, req) {
+      transform: function(result = {}, req) {
         const payload = {
           headers: {
-            "X-Return-Code": result.code
+            "X-Return-Code": result.code || 0
           },
           body: lodash.get(result, "data")
         };
@@ -145,7 +148,7 @@ var mappings = [
     serviceName: 'app-handshake/handler',
     methodName: 'revokeToken',
     output: {
-      transform: function(result, req) {
+      transform: function(result = {}, req) {
         const payload = {
           headers: {
             "X-Return-Code": result.code || 0
@@ -154,7 +157,10 @@ var mappings = [
         };
         return payload;
       }
-    }
+    },
+    error: {
+      transform: transformError,
+    },
   },
   {
     path: [
@@ -187,7 +193,7 @@ var mappings = [
     serviceName: 'app-handshake/handler',
     methodName: 'updateUser',
     output: {
-      transform: function(result, req) {
+      transform: function(result = {}, req) {
         const payload = {
           headers: {
             "X-Return-Code": result.code || 0
@@ -196,7 +202,10 @@ var mappings = [
         };
         return payload;
       }
-    }
+    },
+    error: {
+      transform: transformError,
+    },
   },
   {
     path: '/util/hash-password',
@@ -218,10 +227,10 @@ var mappings = [
     serviceName: 'app-handshake/bcryptor',
     methodName: 'hash',
     output: {
-      transform: function(result, req) {
+      transform: function(result = {}, req) {
         const payload = {
           headers: {
-            "X-Return-Code": 0
+            "X-Return-Code": result.code || 0
           },
           body: {
             "digest": result
@@ -247,11 +256,15 @@ function transformError (err, req) {
     statusCode: err.statusCode || 500,
     headers: {},
     body: {
+      name: err.name,
       message: err.message
     }
   };
   if (err.returnCode) {
     output.headers['X-Return-Code'] = err.returnCode;
+  }
+  if (lodash.isObject(err.payload)) {
+    output.body.payload = err.payload;
   }
   return output;
 }
