@@ -36,7 +36,37 @@ module.exports = {
           },
           "secretKey": {
             "type": "string"
-          }
+          },
+          "errorCodes": {
+            "type": "object",
+            "patternProperties": {
+              ".+": {
+                "type": "object",
+                "properties": {
+                  "message": {
+                    "type": "string"
+                  },
+                  "returnCode": {
+                    "oneOf": [
+                      {
+                        "type": "number"
+                      },
+                      {
+                        "type": "string"
+                      }
+                    ]
+                  },
+                  "statusCode": {
+                    "type": "number"
+                  },
+                  "description": {
+                    "type": "string"
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          },
         },
         "additionalProperties": false
       }

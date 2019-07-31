@@ -83,7 +83,40 @@ function Handler(params = {}) {
     serviceSelector = new ServiceSelector({ serviceResolver, sandboxRegistry });
   }
 
-  const ctx = { L, T, packageName, config, schemaManager, serviceSelector, oauthApi, bcryptor };
+  let errorBuilder;
+  if (lodash.isFunction(chores.newErrorBuilder)) {
+    errorBuilder = chores.newErrorBuilder({
+      namespace: 'appHandshake',
+      errorCodes: config.errorCodes
+    });
+  } else {
+    errorBuilder = new function ({ namespace, errorCodes }) {
+      this.createError = function(errorName, payload) {
+        const errInfo = lodash.get(errorCodes, errorName);
+        if (errInfo == null) {
+          const err = new Error('Unsupported error[' + errorName + ']');
+          err.name = errorName;
+          err.returnCode = -1;
+          err.statusCode = 500;
+          return err;
+        }
+        const err = new Error(errInfo.message);
+        err.name = errorName;
+        err.returnCode = errInfo.returnCode;
+        err.statusCode = errInfo.statusCode;
+        if (lodash.isObject(payload)) {
+          err.payload = payload;
+        }
+        return err;
+      }
+    }({
+      namespace: 'appHandshake',
+      errorCodes: config.errorCodes
+    })
+  }
+
+  const ctx = { L, T, packageName, config, schemaManager, serviceSelector,
+    errorBuilder, oauthApi, bcryptor };
 
   function attachServices (packet) {
     return lodash.assign(packet, ctx);
@@ -150,14 +183,6 @@ Handler.referenceHash = {
 
 module.exports = Handler;
 
-function getModelMethodGeneral (schemaManager, modelName, methodName) {
-  const model = schemaManager.getModel(modelName);
-  if (!model) {
-    return Promise.reject(new Error(modelName + '_not_available'));
-  }
-  return model[methodName];
-}
-
 function getModelMethodPromise (schemaManager, modelName, methodName) {
   const model = schemaManager.getModel(modelName);
   if (!model) {
@@ -167,7 +192,7 @@ function getModelMethodPromise (schemaManager, modelName, methodName) {
 }
 
 function loginAdminApp (packet = {}) {
-  const { bcryptor, oauthApi, schemaManager, config, appType, data } = packet;
+  const { bcryptor, oauthApi, schemaManager, errorBuilder, config, appType, data } = packet;
   return Promise.resolve().then(function() {
     return getModelMethodPromise(schemaManager, 'UserModel', 'findOne');
   })
@@ -178,41 +203,40 @@ function loginAdminApp (packet = {}) {
   })
   .then(function(user) {
     if (!user) {
-      const err = new Error("user not found");
-      err.payload = {
+      return Promise.reject(errorBuilder.createError('UserNotFound', {
+        appType: appType,
         username: data.username
-      }
-      return Promise.reject(err);
+      }));
     }
     if (user.activated == false) {
-      const err = new Error("user is locked");
-      err.payload = {
+      return Promise.reject(errorBuilder.createError('UserIsLocked', {
+        appType: appType,
         username: data.username
-      }
-      return Promise.reject(err);
+      }));
     }
     if (user.deleted == true) {
-      const err = new Error("user is deleted");
-      err.payload = {
+      return Promise.reject(errorBuilder.createError('UserIsDeleted', {
+        appType: appType,
         username: data.username
-      }
-      return Promise.reject(err);
+      }));
     }
     // verify the password
     const encPasswd = lodash.get(user, [appType, 'password'], null);
     if (encPasswd === null) {
-      const err = new Error("password not found");
-      err.payload = {
+      return Promise.reject(errorBuilder.createError('PasswordNotFound', {
+        appType: appType,
         username: data.username
-      }
-      return Promise.reject(err);
+      }));
     }
     return bcryptor.compare(data.password, encPasswd).then(function(matched) {
       if (matched) {
         lodash.assign(user[appType], { verified: true, refreshToken: genKey() });
         return user.save();
       } else {
-        return Promise.reject(new Error("password is mismatched"));
+        return Promise.reject(errorBuilder.createError('PasswordIsMismatched', {
+          appType: appType,
+          username: data.username
+        }));
       }
     });
   })
@@ -263,12 +287,12 @@ function upsertDevice (packet = {}) {
 }
 
 function upsertUser (packet = {}) {
-  const { schemaManager, config, appType, data, device } = packet;
+  const { schemaManager, errorBuilder, config, appType, data, device } = packet;
   return Promise.resolve().then(function() {
     return getModelMethodPromise(schemaManager, 'UserModel', 'findOneAndUpdate');
   })
   .then(function(method) {
-    const err = sanitizePhone(data, config);
+    const err = sanitizePhone(data, config, errorBuilder);
     if (err) {
       return Promise.reject(err);
     }
@@ -292,12 +316,12 @@ function upsertUser (packet = {}) {
 }
 
 function validateUser (packet = {}) {
-  const { schemaManager, config, appType, data, device } = packet;
+  const { schemaManager, errorBuilder, config, appType, data, device } = packet;
   return Promise.resolve().then(function() {
     return getModelMethodPromise(schemaManager, 'UserModel', 'findOne');
   })
   .then(function(method) {
-    const err = sanitizePhone(data, config);
+    const err = sanitizePhone(data, config, errorBuilder);
     if (err) {
       return Promise.reject(err);
     }
@@ -321,26 +345,20 @@ function validateUser (packet = {}) {
           });
         });
       } else {
-        const err = new Error("user not found");
-        err.payload = {
+        return Promise.reject(errorBuilder.createError('UserNotFound', {
           phoneNumber: data.phoneNumber
-        }
-        return Promise.reject(err);
+        }));
       }
     }
     if (user.activated == false) {
-      const err = new Error("user is locked");
-      err.payload = {
+      return Promise.reject(errorBuilder.createError('UserIsLocked', {
         phoneNumber: data.phoneNumber
-      }
-      return Promise.reject(err);
+      }));
     }
     if (user.deleted == true) {
-      const err = new Error("user is deleted");
-      err.payload = {
+      return Promise.reject(errorBuilder.createError('UserIsDeleted', {
         phoneNumber: data.phoneNumber
-      }
-      return Promise.reject(err);
+      }));
     }
     lodash.assign(user[appType], { device: device });
     return user.save();
@@ -432,7 +450,7 @@ function registerEnd (packet = {}) {
 }
 
 function verifyOTP (packet = {}) {
-  const { schemaManager, oauthApi, config, data } = packet;
+  const { schemaManager, errorBuilder, oauthApi, config, data } = packet;
   return Promise.resolve().then(function() {
     return getModelMethodPromise(schemaManager, 'VerificationModel', 'findOne');
   })
@@ -445,19 +463,28 @@ function verifyOTP (packet = {}) {
   })
   .then(function(verification) {
     if (!verification) {
-      return Promise.reject(new Error('key not found'));
+      return Promise.reject(errorBuilder.createError('VerificationKeyNotFound', {
+        key: data.key,
+      }));
     }
     if (!verification.expiredTime) {
-      return Promise.reject(new Error('invalid expiredTime'));
+      return Promise.reject(errorBuilder.createError('VerificationExpiredTimeIsEmpty', {
+        key: data.key,
+      }));
     }
     const now = moment();
     const expiredTime = new moment(verification.expiredTime);
     if (now.isAfter(expiredTime)) {
-      return Promise.reject(new Error('OTP has been expired'));
+      return Promise.reject(errorBuilder.createError('OTPHasExpired', {
+        key: data.key,
+        expiredTime: expiredTime,
+      }));
     }
     // compare OTP
     if (data.otp != verification.otp) {
-      return Promise.reject(new Error('incorrect OTP code'));
+      return Promise.reject(errorBuilder.createError('OTPIncorrectCode', {
+        key: data.key,
+      }));
     }
     // ok
     verification.verified = true;
@@ -465,7 +492,9 @@ function verifyOTP (packet = {}) {
   })
   .then(function(verification) {
     if (!verification) {
-      return Promise.reject(new Error('could not save verification object'));
+      return Promise.reject(errorBuilder.createError('VerificationCouldNotBeSaved', {
+        key: data.key,
+      }));
     }
     return getModelMethodPromise(schemaManager, 'UserModel', 'findById')
     .then(function(method) {
@@ -473,12 +502,15 @@ function verifyOTP (packet = {}) {
     })
     .then(function(user) {
       if (!user) {
-        return Promise.reject(new Error(util.format(
-          'the user#%s not found', verification.user)));
+        return Promise.reject(errorBuilder.createError('VerificationUserNotFound', {
+          key: data.key,
+        }));
       }
       if (!user[verification.appType]) {
-        return Promise.reject(new Error(util.format(
-          'the user#%s[%s] not found', verification.user, verification.appType)));
+        return Promise.reject(errorBuilder.createError('VerificationUserAppTypeNotFound', {
+          key: data.key,
+          appType: verification.appType,
+        }));
       }
       user[verification.appType].verified = true;
       user[verification.appType].refreshToken = genKey();
@@ -505,7 +537,7 @@ function verifyOTP (packet = {}) {
 }
 
 function refreshToken (packet = {}) {
-  const { schemaManager, oauthApi, config, appType, data } = packet;
+  const { schemaManager, errorBuilder, oauthApi, config, appType, data } = packet;
   // search user[appType].refreshToken
   return Promise.resolve()
   .then(function() {
@@ -519,10 +551,10 @@ function refreshToken (packet = {}) {
   })
   .then(function(user) {
     if (!user) {
-      return Promise.reject(new Error("refreshToken not found"));
+      return Promise.reject(errorBuilder.createError('RefreshTokenNotFound'));
     }
     if (user[appType].verified == false) {
-      return Promise.reject(new Error("user has not be verified"));
+      return Promise.reject(errorBuilder.createError('UserIsNotVerified'));
     }
     const now = moment();
     const expiredIn = config.tokenExpiredIn;
@@ -551,16 +583,14 @@ function refreshToken (packet = {}) {
 }
 
 function updateUser (packet = {}) {
-  const { bcryptor, schemaManager, config, appType, data } = packet;
-  if (!data) {
-    return Promise.reject(new Error('data is null'));
-  }
+  const { bcryptor, schemaManager, errorBuilder, config, appType, data = {} } = packet;
 
   let p = getModelMethodPromise(schemaManager, 'UserModel', 'findOne');
 
   if (appType === APPTYPE_ADMIN) {
     if (!data['holderId'] && !data['username']) {
-      return Promise.reject(new Error('[adminApp]: holderId/username expected'));
+      return Promise.reject(errorBuilder.createError('AdminAppHolderIdOrUsernameExpected',
+        lodash.pick(data, ['holderId', 'username'])));
     }
     p = p.then(function(method) {
       // query an user by the holderId
@@ -583,7 +613,10 @@ function updateUser (packet = {}) {
         if (byHolderId) {
           if (byUsername) {
             if (byHolderId._id.toString() !== byUsername._id.toString()) {
-              return Promise.reject(new Error('The username is already registered'));
+              return Promise.reject(errorBuilder.createError('UsernameHasOccupied', {
+                holderId: data['holderId'],
+                username: data['username']
+              }));
             }
           }
           assignUserData(appType, byHolderId, data, bcryptor);
@@ -610,11 +643,12 @@ function updateUser (packet = {}) {
 
   if (appType === APPTYPE_AGENT) {
     if (!data['holderId'] && !data['phoneNumber']) {
-      return Promise.reject(new Error('[agentApp]: holderId/phoneNumber expected'));
+      return Promise.reject(errorBuilder.createError('AgentAppHolderIdOrPhoneNumberExpected',
+        lodash.pick(data, ['holderId', 'phoneNumber'])));
     }
     p = p.then(function(method) {
       // sanitize the phone number
-      const err = sanitizePhone(data, config);
+      const err = sanitizePhone(data, config, errorBuilder);
       if (err) {
         return Promise.reject(err);
       }
@@ -638,7 +672,10 @@ function updateUser (packet = {}) {
         if (userById) {
           if (user) {
             if (userById._id.toString() !== user._id.toString()) {
-              return Promise.reject(new Error('The phoneNumber is already registered'));
+              return Promise.reject(errorBuilder.createError('PhoneNumberHasOccupied', {
+                holderId: data['holderId'],
+                phoneNumber: data['phoneNumber']
+              }));
             }
           }
           assignUserData(appType, userById, data, bcryptor);
@@ -761,10 +798,10 @@ function validateAppType (packet) {
   return Promise.resolve(packet);
 }
 
-function sanitizePhone (data = {}, config = {}) {
+function sanitizePhone (data = {}, config = {}, errorBuilder) {
   config.defaultCountryCode = config.defaultCountryCode || 'US';
   if (lodash.isEmpty(data.phoneNumber) && lodash.isEmpty(data.phone)) {
-    return new Error('Phone info object must not be null');
+    return errorBuilder.createError('PhoneNumberMustBeNotNull');
   }
   // sync between data.phone and data.phoneNumber
   if (data.phone) {
@@ -772,7 +809,9 @@ function sanitizePhone (data = {}, config = {}) {
     let derivativeNumber = data.phone.countryCode + data.phone.number;
     if (data.phoneNumber) {
       if (data.phoneNumber !== derivativeNumber) {
-        return new Error('Mismatched phone number');
+        return errorBuilder.createError('PhoneNumberMismatched', {
+          phoneNumber: data.phoneNumber, phone: data.phone
+        });
       }
     } else {
       data.phoneNumber = derivativeNumber;
@@ -782,7 +821,9 @@ function sanitizePhone (data = {}, config = {}) {
   }
   // validate phone & phoneNumber
   if (!isValidPhoneNumber(data.phoneNumber, config.defaultCountryCode)) {
-    return new Error(util.format('Invalid phone number [%s]', data.phoneNumber));
+    return errorBuilder.createError('PhoneNumberIsInvalid', {
+      phoneNumber: data.phoneNumber
+    });
   }
   return null;
 }
