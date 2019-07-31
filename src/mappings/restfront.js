@@ -48,15 +48,7 @@ var mappings = [
     serviceName: 'app-handshake/handler',
     methodName: 'register',
     output: {
-      transform: function(result = {}, req) {
-        const payload = {
-          headers: {
-            "X-Return-Code": result.code || 0
-          },
-          body: lodash.get(result, "data")
-        };
-        return payload;
-      }
+      transform: transformOutput,
     },
     error: {
       transform: transformError,
@@ -84,15 +76,7 @@ var mappings = [
     serviceName: 'app-handshake/handler',
     methodName: 'verificationCode',
     output: {
-      transform: function(result = {}, req) {
-        const payload = {
-          headers: {
-            "X-Return-Code": result.code || 0
-          },
-          body: lodash.get(result, "data")
-        };
-        return payload;
-      }
+      transform: transformOutput,
     },
     error: {
       transform: transformError,
@@ -112,15 +96,7 @@ var mappings = [
     serviceName: 'app-handshake/handler',
     methodName: 'refreshToken',
     output: {
-      transform: function(result = {}, req) {
-        const payload = {
-          headers: {
-            "X-Return-Code": result.code || 0
-          },
-          body: lodash.get(result, "data")
-        };
-        return payload;
-      },
+      transform: transformOutput,
     },
     error: {
       transform: transformError,
@@ -148,15 +124,7 @@ var mappings = [
     serviceName: 'app-handshake/handler',
     methodName: 'revokeToken',
     output: {
-      transform: function(result = {}, req) {
-        const payload = {
-          headers: {
-            "X-Return-Code": result.code || 0
-          },
-          body: lodash.get(result, "data")
-        };
-        return payload;
-      }
+      transform: transformOutput,
     },
     error: {
       transform: transformError,
