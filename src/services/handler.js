@@ -46,42 +46,7 @@ function Handler(params = {}) {
   })
 
   const serviceResolver = config.serviceResolver || 'app-restfetch/resolver';
-  let serviceSelector;
-  if (lodash.isFunction(chores.newServiceSelector)) {
-    serviceSelector = chores.newServiceSelector({ serviceResolver, sandboxRegistry });
-  } else {
-    const ServiceSelector = function (kwargs = {}) {
-      const { serviceResolver, sandboxRegistry } = kwargs;
-      assert.ok(this.constructor === ServiceSelector);
-      assert.ok(serviceResolver && lodash.isString(serviceResolver));
-      assert.ok(sandboxRegistry && lodash.isObject(sandboxRegistry));
-      let serviceResolverAvailable = true;
-      this.lookupMethod = function (serviceName, methodName) {
-        let ref = {};
-        if (serviceResolverAvailable) {
-          let resolver = sandboxRegistry.lookupService(serviceResolver);
-          if (resolver) {
-            ref.proxied = true;
-            ref.service = resolver.lookupService(serviceName);
-            if (ref.service) {
-              ref.method = ref.service[methodName];
-            }
-          } else {
-            serviceResolverAvailable = false;
-          }
-        }
-        if (!ref.method) {
-          ref.proxied = false;
-          ref.service = sandboxRegistry.lookupService(serviceName);
-          if (ref.service) {
-            ref.method = ref.service[methodName];
-          }
-        }
-        return ref;
-      }
-    }
-    serviceSelector = new ServiceSelector({ serviceResolver, sandboxRegistry });
-  }
+  const serviceSelector = chores.newServiceSelector({ serviceResolver, sandboxRegistry });
 
   let errorBuilder;
   if (lodash.isFunction(chores.newErrorBuilder)) {

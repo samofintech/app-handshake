@@ -60,6 +60,7 @@ var mappings = [
     input: {
       transform: function(req) {
         return {
+          appType: extractAppType(req),
           data: req.body
         }
       },
