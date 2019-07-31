@@ -172,6 +172,13 @@ function Handler(params = {}) {
       .then(updateUser)
       .then(detachServices);
   }
+
+  this.resetVerification = function (packet) {
+    return validateAppType(packet)
+      .then(attachServices)
+      .then(resetVerification)
+      .then(detachServices);
+  }
 };
 
 Handler.referenceHash = {
@@ -369,7 +376,7 @@ function validateUser (packet = {}) {
 }
 
 function generateOTP (packet = {}) {
-  const { schemaManager, config, appType, data, user, device } = packet;
+  const { schemaManager, errorBuilder, config, appType, data, user, device } = packet;
   return Promise.resolve().then(function() {
     return getModelMethodPromise(schemaManager, 'VerificationModel', 'findOne');
   })
@@ -708,6 +715,40 @@ function updateUser (packet = {}) {
   });
 
   return p;
+}
+
+function resetVerification (packet = {}) {
+  const { schemaManager, errorBuilder, config, appType, data, user, device } = packet;
+
+  let p = getModelMethodPromise(schemaManager, 'VerificationModel', 'findOne');
+
+  p = p.then(function(method) {
+    const conditions = {
+      appType: appType,
+      phoneNumber: data.phoneNumber
+    };
+    const opts = {
+      sort: { expiredTime: -1 }
+    }
+    return method(conditions, null, opts);
+  });
+
+  p = p.then(function(verification) {
+    if (verification) {
+      const now = moment().subtract(config.otpTypingTime, 'seconds');
+      verification.expiredTime = now;
+      return verification.save();
+    }
+    return verification;
+  });
+
+  return p.then(function(verification) {
+    if (verification) {
+      return lodash.assign(packet, { affected: 1 });
+    } else {
+      return lodash.assign(packet, { affected: 0 });
+    }
+  });
 }
 
 const MIRROR_USER_FIELDS = ['firstName', 'lastName', 'email', 'activated', 'deleted'];

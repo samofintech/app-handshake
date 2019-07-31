@@ -193,15 +193,44 @@ var mappings = [
     serviceName: 'app-handshake/handler',
     methodName: 'updateUser',
     output: {
-      transform: function(result = {}, req) {
-        const payload = {
+      transform: transformOutput,
+    },
+    error: {
+      transform: transformError,
+    },
+  },
+  {
+    path: ['/util/reset-verification', '/util/reset-verification/:appType'],
+    method: 'POST',
+    input: {
+      examples: [
+        {
+          path: '/util/reset-verification',
           headers: {
-            "X-Return-Code": result.code || 0
+            'X-App-Type': 'agentApp',
           },
-          body: lodash.get(result, "data")
-        };
-        return payload;
+          body: {
+            phoneNumber: "+84999999999",
+          },
+        },
+        {
+          path: '/util/reset-verification/agent',
+          body: {
+            phoneNumber: "+84999999999",
+          },
+        },
+      ],
+      transform: function(req) {
+        return {
+          appType: extractAppType(req),
+          data: req.body
+        }
       }
+    },
+    serviceName: 'app-handshake/handler',
+    methodName: 'resetVerification',
+    output: {
+      transform: transformOutput,
     },
     error: {
       transform: transformError,
@@ -249,6 +278,16 @@ module.exports = mappings;
 
 function extractAppType (req) {
   return req.params.appType || req.get('X-App-Type') || 'agent';
+}
+
+function transformOutput (result = {}, req) {
+  const payload = {
+    headers: {
+      "X-Return-Code": result.code || 0
+    },
+    body: lodash.get(result, "data")
+  };
+  return payload;
 }
 
 function transformError (err, req) {
