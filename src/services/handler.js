@@ -91,7 +91,7 @@ function Handler(params = {}) {
     });
   } else {
     errorBuilder = new function ({ namespace, errorCodes }) {
-      this.createError = function(errorName, payload) {
+      this.createError = function(errorName, { payload } = {}) {
         const errInfo = lodash.get(errorCodes, errorName);
         if (errInfo == null) {
           const err = new Error('Unsupported error[' + errorName + ']');
@@ -210,40 +210,40 @@ function loginAdminApp (packet = {}) {
   })
   .then(function(user) {
     if (!user) {
-      return Promise.reject(errorBuilder.createError('UserNotFound', {
+      return Promise.reject(errorBuilder.createError('UserNotFound', { payload: {
         appType: appType,
         username: data.username
-      }));
+      }}));
     }
     if (user.activated == false) {
-      return Promise.reject(errorBuilder.createError('UserIsLocked', {
+      return Promise.reject(errorBuilder.createError('UserIsLocked', { payload: {
         appType: appType,
         username: data.username
-      }));
+      }}));
     }
     if (user.deleted == true) {
-      return Promise.reject(errorBuilder.createError('UserIsDeleted', {
+      return Promise.reject(errorBuilder.createError('UserIsDeleted', { payload: {
         appType: appType,
         username: data.username
-      }));
+      }}));
     }
     // verify the password
     const encPasswd = lodash.get(user, [appType, 'password'], null);
     if (encPasswd === null) {
-      return Promise.reject(errorBuilder.createError('PasswordNotFound', {
+      return Promise.reject(errorBuilder.createError('PasswordNotFound', { payload: {
         appType: appType,
         username: data.username
-      }));
+      }}));
     }
     return bcryptor.compare(data.password, encPasswd).then(function(matched) {
       if (matched) {
         lodash.assign(user[appType], { verified: true, refreshToken: genKey() });
         return user.save();
       } else {
-        return Promise.reject(errorBuilder.createError('PasswordIsMismatched', {
+        return Promise.reject(errorBuilder.createError('PasswordIsMismatched', { payload: {
           appType: appType,
           username: data.username
-        }));
+        }}));
       }
     });
   })
@@ -352,20 +352,20 @@ function validateUser (packet = {}) {
           });
         });
       } else {
-        return Promise.reject(errorBuilder.createError('UserNotFound', {
+        return Promise.reject(errorBuilder.createError('UserNotFound', { payload: {
           phoneNumber: data.phoneNumber
-        }));
+        }}));
       }
     }
     if (user.activated == false) {
-      return Promise.reject(errorBuilder.createError('UserIsLocked', {
+      return Promise.reject(errorBuilder.createError('UserIsLocked', { payload: {
         phoneNumber: data.phoneNumber
-      }));
+      }}));
     }
     if (user.deleted == true) {
-      return Promise.reject(errorBuilder.createError('UserIsDeleted', {
+      return Promise.reject(errorBuilder.createError('UserIsDeleted', { payload: {
         phoneNumber: data.phoneNumber
-      }));
+      }}));
     }
     lodash.assign(user[appType], { device: device });
     return user.save();
@@ -470,28 +470,28 @@ function verifyOTP (packet = {}) {
   })
   .then(function(verification) {
     if (!verification) {
-      return Promise.reject(errorBuilder.createError('VerificationKeyNotFound', {
+      return Promise.reject(errorBuilder.createError('VerificationKeyNotFound', { payload: {
         key: data.key,
-      }));
+      }}));
     }
     if (!verification.expiredTime) {
-      return Promise.reject(errorBuilder.createError('VerificationExpiredTimeIsEmpty', {
+      return Promise.reject(errorBuilder.createError('VerificationExpiredTimeIsEmpty', { payload: {
         key: data.key,
-      }));
+      }}));
     }
     const now = moment();
     const expiredTime = new moment(verification.expiredTime);
     if (now.isAfter(expiredTime)) {
-      return Promise.reject(errorBuilder.createError('OTPHasExpired', {
+      return Promise.reject(errorBuilder.createError('OTPHasExpired', { payload: {
         key: data.key,
         expiredTime: expiredTime,
-      }));
+      }}));
     }
     // compare OTP
     if (data.otp != verification.otp) {
-      return Promise.reject(errorBuilder.createError('OTPIncorrectCode', {
+      return Promise.reject(errorBuilder.createError('OTPIncorrectCode', { payload: {
         key: data.key,
-      }));
+      }}));
     }
     // ok
     verification.verified = true;
@@ -499,9 +499,9 @@ function verifyOTP (packet = {}) {
   })
   .then(function(verification) {
     if (!verification) {
-      return Promise.reject(errorBuilder.createError('VerificationCouldNotBeSaved', {
+      return Promise.reject(errorBuilder.createError('VerificationCouldNotBeSaved', { payload: {
         key: data.key,
-      }));
+      }}));
     }
     return getModelMethodPromise(schemaManager, 'UserModel', 'findById')
     .then(function(method) {
@@ -509,15 +509,15 @@ function verifyOTP (packet = {}) {
     })
     .then(function(user) {
       if (!user) {
-        return Promise.reject(errorBuilder.createError('VerificationUserNotFound', {
+        return Promise.reject(errorBuilder.createError('VerificationUserNotFound', { payload: {
           key: data.key,
-        }));
+        }}));
       }
       if (!user[verification.appType]) {
-        return Promise.reject(errorBuilder.createError('VerificationUserAppTypeNotFound', {
+        return Promise.reject(errorBuilder.createError('VerificationUserAppTypeNotFound', { payload: {
           key: data.key,
           appType: verification.appType,
-        }));
+        }}));
       }
       user[verification.appType].verified = true;
       user[verification.appType].refreshToken = genKey();
@@ -597,7 +597,7 @@ function updateUser (packet = {}) {
   if (appType === APPTYPE_ADMIN) {
     if (!data['holderId'] && !data['username']) {
       return Promise.reject(errorBuilder.createError('AdminAppHolderIdOrUsernameExpected',
-        lodash.pick(data, ['holderId', 'username'])));
+      { payload: lodash.pick(data, ['holderId', 'username']) }));
     }
     p = p.then(function(method) {
       // query an user by the holderId
@@ -620,10 +620,10 @@ function updateUser (packet = {}) {
         if (byHolderId) {
           if (byUsername) {
             if (byHolderId._id.toString() !== byUsername._id.toString()) {
-              return Promise.reject(errorBuilder.createError('UsernameHasOccupied', {
+              return Promise.reject(errorBuilder.createError('UsernameHasOccupied', { payload: {
                 holderId: data['holderId'],
                 username: data['username']
-              }));
+              }}));
             }
           }
           assignUserData(appType, byHolderId, data, bcryptor);
@@ -651,7 +651,7 @@ function updateUser (packet = {}) {
   if (appType === APPTYPE_AGENT) {
     if (!data['holderId'] && !data['phoneNumber']) {
       return Promise.reject(errorBuilder.createError('AgentAppHolderIdOrPhoneNumberExpected',
-        lodash.pick(data, ['holderId', 'phoneNumber'])));
+      { payload: lodash.pick(data, ['holderId', 'phoneNumber']) }));
     }
     p = p.then(function(method) {
       // sanitize the phone number
@@ -679,10 +679,10 @@ function updateUser (packet = {}) {
         if (userById) {
           if (user) {
             if (userById._id.toString() !== user._id.toString()) {
-              return Promise.reject(errorBuilder.createError('PhoneNumberHasOccupied', {
+              return Promise.reject(errorBuilder.createError('PhoneNumberHasOccupied', { payload: {
                 holderId: data['holderId'],
                 phoneNumber: data['phoneNumber']
-              }));
+              }}));
             }
           }
           assignUserData(appType, userById, data, bcryptor);
@@ -855,9 +855,9 @@ function sanitizePhone (data = {}, config = {}, errorBuilder) {
     let derivativeNumber = data.phone.countryCode + data.phone.number;
     if (data.phoneNumber) {
       if (data.phoneNumber !== derivativeNumber) {
-        return errorBuilder.createError('PhoneNumberMismatched', {
+        return errorBuilder.createError('PhoneNumberMismatched', { payload: {
           phoneNumber: data.phoneNumber, phone: data.phone
-        });
+        }});
       }
     } else {
       data.phoneNumber = derivativeNumber;
@@ -867,9 +867,9 @@ function sanitizePhone (data = {}, config = {}, errorBuilder) {
   }
   // validate phone & phoneNumber
   if (!isValidPhoneNumber(data.phoneNumber, config.defaultCountryCode)) {
-    return errorBuilder.createError('PhoneNumberIsInvalid', {
+    return errorBuilder.createError('PhoneNumberIsInvalid', { payload: {
       phoneNumber: data.phoneNumber
-    });
+    }});
   }
   return null;
 }
