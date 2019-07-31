@@ -56,7 +56,7 @@ function Handler(params = {}) {
     });
   } else {
     errorBuilder = new function ({ namespace, errorCodes }) {
-      this.createError = function(errorName, { payload } = {}) {
+      this.createError = function(errorName, { payload, language } = {}) {
         const errInfo = lodash.get(errorCodes, errorName);
         if (errInfo == null) {
           const err = new Error('Unsupported error[' + errorName + ']');
@@ -65,7 +65,14 @@ function Handler(params = {}) {
           err.statusCode = 500;
           return err;
         }
-        const err = new Error(errInfo.message);
+        let msg = errInfo.message || errorName;
+        if (errInfo.messageIn && language in errInfo.messageIn) {
+          msg = errInfo.messageIn[language] || msg;
+        }
+        if (payload && typeof payload === 'object') {
+          msg = format(msg, payload);
+        }
+        const err = new Error(msg);
         err.name = errorName;
         err.returnCode = errInfo.returnCode;
         err.statusCode = errInfo.statusCode;
