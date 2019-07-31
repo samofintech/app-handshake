@@ -10,6 +10,7 @@ var mappings = [
       transform: function(req) {
         return {
           appType: extractAppType(req),
+          language: extractLangCode(req),
           data: req.body
         }
       },
@@ -61,6 +62,7 @@ var mappings = [
       transform: function(req) {
         return {
           appType: extractAppType(req),
+          language: extractLangCode(req),
           data: req.body
         }
       },
@@ -90,6 +92,7 @@ var mappings = [
       transform: function(req) {
         return {
           appType: extractAppType(req),
+          language: extractLangCode(req),
           data: req.body
         }
       },
@@ -118,6 +121,7 @@ var mappings = [
       transform: function(req) {
         return {
           appType: extractAppType(req),
+          language: extractLangCode(req),
           data: req.body
         }
       }
@@ -155,6 +159,7 @@ var mappings = [
       transform: function(req) {
         return {
           appType: extractAppType(req),
+          language: extractLangCode(req),
           data: req.body
         }
       }
@@ -192,6 +197,7 @@ var mappings = [
       transform: function(req) {
         return {
           appType: extractAppType(req),
+          language: extractLangCode(req),
           data: req.body
         }
       }
@@ -247,6 +253,10 @@ module.exports = mappings;
 
 function extractAppType (req) {
   return req.params.appType || req.get('X-App-Type') || 'agent';
+}
+
+function extractLangCode (req) {
+  return req.get('X-Lang-Code') || req.get('X-Language');
 }
 
 function transformOutput (result = {}, req) {

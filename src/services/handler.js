@@ -66,17 +66,19 @@ function Handler(params = {}) {
           return err;
         }
         let msg = errInfo.message || errorName;
-        if (errInfo.messageIn && language in errInfo.messageIn) {
+        if (errInfo.messageIn && typeof language === 'string') {
           msg = errInfo.messageIn[language] || msg;
         }
         if (payload && typeof payload === 'object') {
           msg = format(msg, payload);
+        } else {
+          payload = null;
         }
         const err = new Error(msg);
         err.name = errorName;
         err.returnCode = errInfo.returnCode;
         err.statusCode = errInfo.statusCode;
-        if (lodash.isObject(payload)) {
+        if (payload) {
           err.payload = payload;
         }
         return err;
@@ -171,7 +173,7 @@ function getModelMethodPromise (schemaManager, modelName, methodName) {
 }
 
 function loginAdminApp (packet = {}) {
-  const { bcryptor, oauthApi, schemaManager, errorBuilder, config, appType, data } = packet;
+  const { bcryptor, oauthApi, schemaManager, errorBuilder, config, appType, language, data } = packet;
   return Promise.resolve().then(function() {
     return getModelMethodPromise(schemaManager, 'UserModel', 'findOne');
   })
@@ -185,19 +187,19 @@ function loginAdminApp (packet = {}) {
       return Promise.reject(errorBuilder.createError('UserNotFound', { payload: {
         appType: appType,
         username: data.username
-      }}));
+      }, language }));
     }
     if (user.activated == false) {
       return Promise.reject(errorBuilder.createError('UserIsLocked', { payload: {
         appType: appType,
         username: data.username
-      }}));
+      }, language }));
     }
     if (user.deleted == true) {
       return Promise.reject(errorBuilder.createError('UserIsDeleted', { payload: {
         appType: appType,
         username: data.username
-      }}));
+      }, language }));
     }
     // verify the password
     const encPasswd = lodash.get(user, [appType, 'password'], null);
@@ -205,7 +207,7 @@ function loginAdminApp (packet = {}) {
       return Promise.reject(errorBuilder.createError('PasswordNotFound', { payload: {
         appType: appType,
         username: data.username
-      }}));
+      }, language }));
     }
     return bcryptor.compare(data.password, encPasswd).then(function(matched) {
       if (matched) {
@@ -215,7 +217,7 @@ function loginAdminApp (packet = {}) {
         return Promise.reject(errorBuilder.createError('PasswordIsMismatched', { payload: {
           appType: appType,
           username: data.username
-        }}));
+        }, language }));
       }
     });
   })
@@ -266,7 +268,7 @@ function upsertDevice (packet = {}) {
 }
 
 function upsertUser (packet = {}) {
-  const { schemaManager, errorBuilder, config, appType, data, device } = packet;
+  const { schemaManager, errorBuilder, config, appType, language, data, device } = packet;
   return Promise.resolve().then(function() {
     return getModelMethodPromise(schemaManager, 'UserModel', 'findOneAndUpdate');
   })
@@ -295,7 +297,7 @@ function upsertUser (packet = {}) {
 }
 
 function validateUser (packet = {}) {
-  const { schemaManager, errorBuilder, config, appType, data, device } = packet;
+  const { schemaManager, errorBuilder, config, appType, language, data, device } = packet;
   return Promise.resolve().then(function() {
     return getModelMethodPromise(schemaManager, 'UserModel', 'findOne');
   })
@@ -326,18 +328,18 @@ function validateUser (packet = {}) {
       } else {
         return Promise.reject(errorBuilder.createError('UserNotFound', { payload: {
           phoneNumber: data.phoneNumber
-        }}));
+        }, language }));
       }
     }
     if (user.activated == false) {
       return Promise.reject(errorBuilder.createError('UserIsLocked', { payload: {
         phoneNumber: data.phoneNumber
-      }}));
+      }, language }));
     }
     if (user.deleted == true) {
       return Promise.reject(errorBuilder.createError('UserIsDeleted', { payload: {
         phoneNumber: data.phoneNumber
-      }}));
+      }, language }));
     }
     lodash.assign(user[appType], { device: device });
     return user.save();
@@ -348,7 +350,7 @@ function validateUser (packet = {}) {
 }
 
 function generateOTP (packet = {}) {
-  const { schemaManager, errorBuilder, config, appType, data, user, device } = packet;
+  const { schemaManager, errorBuilder, config, appType, language, data, user, device } = packet;
   return Promise.resolve().then(function() {
     return getModelMethodPromise(schemaManager, 'VerificationModel', 'findOne');
   })
@@ -429,7 +431,7 @@ function registerEnd (packet = {}) {
 }
 
 function verifyOTP (packet = {}) {
-  const { schemaManager, errorBuilder, oauthApi, config, data } = packet;
+  const { schemaManager, errorBuilder, oauthApi, config, appType, language, data } = packet;
   return Promise.resolve().then(function() {
     return getModelMethodPromise(schemaManager, 'VerificationModel', 'findOne');
   })
@@ -444,12 +446,12 @@ function verifyOTP (packet = {}) {
     if (!verification) {
       return Promise.reject(errorBuilder.createError('VerificationKeyNotFound', { payload: {
         key: data.key,
-      }}));
+      }, language }));
     }
     if (!verification.expiredTime) {
       return Promise.reject(errorBuilder.createError('VerificationExpiredTimeIsEmpty', { payload: {
         key: data.key,
-      }}));
+      }, language }));
     }
     const now = moment();
     const expiredTime = new moment(verification.expiredTime);
@@ -457,13 +459,13 @@ function verifyOTP (packet = {}) {
       return Promise.reject(errorBuilder.createError('OTPHasExpired', { payload: {
         key: data.key,
         expiredTime: expiredTime,
-      }}));
+      }, language }));
     }
     // compare OTP
     if (data.otp != verification.otp) {
       return Promise.reject(errorBuilder.createError('OTPIncorrectCode', { payload: {
         key: data.key,
-      }}));
+      }, language }));
     }
     // ok
     verification.verified = true;
@@ -473,7 +475,7 @@ function verifyOTP (packet = {}) {
     if (!verification) {
       return Promise.reject(errorBuilder.createError('VerificationCouldNotBeSaved', { payload: {
         key: data.key,
-      }}));
+      }, language }));
     }
     return getModelMethodPromise(schemaManager, 'UserModel', 'findById')
     .then(function(method) {
@@ -483,13 +485,13 @@ function verifyOTP (packet = {}) {
       if (!user) {
         return Promise.reject(errorBuilder.createError('VerificationUserNotFound', { payload: {
           key: data.key,
-        }}));
+        }, language }));
       }
       if (!user[verification.appType]) {
         return Promise.reject(errorBuilder.createError('VerificationUserAppTypeNotFound', { payload: {
           key: data.key,
           appType: verification.appType,
-        }}));
+        }, language }));
       }
       user[verification.appType].verified = true;
       user[verification.appType].refreshToken = genKey();
@@ -516,7 +518,7 @@ function verifyOTP (packet = {}) {
 }
 
 function refreshToken (packet = {}) {
-  const { schemaManager, errorBuilder, oauthApi, config, appType, data } = packet;
+  const { schemaManager, errorBuilder, oauthApi, config, appType, language, data } = packet;
   // search user[appType].refreshToken
   return Promise.resolve()
   .then(function() {
@@ -562,14 +564,14 @@ function refreshToken (packet = {}) {
 }
 
 function updateUser (packet = {}) {
-  const { bcryptor, schemaManager, errorBuilder, config, appType, data = {} } = packet;
+  const { bcryptor, schemaManager, errorBuilder, config, appType, language, data = {} } = packet;
 
   let p = getModelMethodPromise(schemaManager, 'UserModel', 'findOne');
 
   if (appType === APPTYPE_ADMIN) {
     if (!data['holderId'] && !data['username']) {
       return Promise.reject(errorBuilder.createError('AdminAppHolderIdOrUsernameExpected',
-      { payload: lodash.pick(data, ['holderId', 'username']) }));
+      { payload: lodash.pick(data, ['holderId', 'username']), language }));
     }
     p = p.then(function(method) {
       // query an user by the holderId
@@ -595,7 +597,7 @@ function updateUser (packet = {}) {
               return Promise.reject(errorBuilder.createError('UsernameHasOccupied', { payload: {
                 holderId: data['holderId'],
                 username: data['username']
-              }}));
+              }, language }));
             }
           }
           assignUserData(appType, byHolderId, data, bcryptor);
@@ -623,7 +625,7 @@ function updateUser (packet = {}) {
   if (appType === APPTYPE_AGENT) {
     if (!data['holderId'] && !data['phoneNumber']) {
       return Promise.reject(errorBuilder.createError('AgentAppHolderIdOrPhoneNumberExpected',
-      { payload: lodash.pick(data, ['holderId', 'phoneNumber']) }));
+      { payload: lodash.pick(data, ['holderId', 'phoneNumber']), language }));
     }
     p = p.then(function(method) {
       // sanitize the phone number
@@ -654,7 +656,7 @@ function updateUser (packet = {}) {
               return Promise.reject(errorBuilder.createError('PhoneNumberHasOccupied', { payload: {
                 holderId: data['holderId'],
                 phoneNumber: data['phoneNumber']
-              }}));
+              }, language }));
             }
           }
           assignUserData(appType, userById, data, bcryptor);
@@ -690,7 +692,7 @@ function updateUser (packet = {}) {
 }
 
 function resetVerification (packet = {}) {
-  const { schemaManager, errorBuilder, config, appType, data } = packet;
+  const { schemaManager, errorBuilder, config, appType, language, data } = packet;
 
   let p = getModelMethodPromise(schemaManager, 'VerificationModel', 'findOne');
 
