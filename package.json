@@ -41,6 +41,7 @@
   },
   "dependencies": {
     "app-datastore": "^0.3.1",
+    "app-errorlist": "^0.3.0",
     "app-restfetch": "^0.3.0",
     "app-restfront": "^0.3.1",
     "app-tracelog": "^0.3.0",
