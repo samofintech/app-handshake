@@ -483,6 +483,7 @@ function verifyOTP (packet = {}) {
 
 function refreshToken (packet = {}) {
   const { schemaManager, errorBuilder, oauthApi, config, appType, language, data } = packet;
+  const { revisions } = config;
   // search user[appType].refreshToken
   return Promise.resolve()
   .then(function() {
@@ -496,10 +497,10 @@ function refreshToken (packet = {}) {
   })
   .then(function(user) {
     if (!user) {
-      return Promise.reject(errorBuilder.newError('RefreshTokenNotFound'));
+      return Promise.reject(errorBuilder.newError('RefreshTokenNotFound', { language }));
     }
     if (user[appType].verified == false) {
-      return Promise.reject(errorBuilder.newError('UserIsNotVerified'));
+      return Promise.reject(errorBuilder.newError('UserIsNotVerified', { language }));
     }
     const now = moment();
     const expiredIn = config.tokenExpiredIn;
@@ -522,6 +523,7 @@ function refreshToken (packet = {}) {
       access_token: oauthApi.createAppAccessToken({ user, constraints }),
       refresh_token: user[appType].refreshToken,
       expires_in: expiredIn,
+      revisions: revisions,
     }
     return lodash.assign(packet, { data: { auth } });
   });
@@ -662,7 +664,7 @@ function resetVerification (packet = {}) {
 
   if (appType === APPTYPE_AGENT) {
     if (!lodash.isString(data.phoneNumber) || lodash.isEmpty(data.phoneNumber)) {
-      return Promise.reject(errorBuilder.newError('PhoneNumberMustBeNotNull'));
+      return Promise.reject(errorBuilder.newError('PhoneNumberMustBeNotNull', { language }));
     }
     p = p.then(function(method) {
       const conditions = {
@@ -785,7 +787,7 @@ function validateAppType (packet) {
 function sanitizePhone (data = {}, config = {}, errorBuilder) {
   config.defaultCountryCode = config.defaultCountryCode || 'US';
   if (lodash.isEmpty(data.phoneNumber) && lodash.isEmpty(data.phone)) {
-    return errorBuilder.newError('PhoneNumberMustBeNotNull');
+    return errorBuilder.newError('PhoneNumberMustBeNotNull', { language });
   }
   // sync between data.phone and data.phoneNumber
   if (data.phone) {
@@ -795,7 +797,7 @@ function sanitizePhone (data = {}, config = {}, errorBuilder) {
       if (data.phoneNumber !== derivativeNumber) {
         return errorBuilder.newError('PhoneNumberMismatched', { payload: {
           phoneNumber: data.phoneNumber, phone: data.phone
-        }});
+        }, language });
       }
     } else {
       data.phoneNumber = derivativeNumber;
@@ -807,7 +809,7 @@ function sanitizePhone (data = {}, config = {}, errorBuilder) {
   if (!isValidPhoneNumber(data.phoneNumber, config.defaultCountryCode)) {
     return errorBuilder.newError('PhoneNumberIsInvalid', { payload: {
       phoneNumber: data.phoneNumber
-    }});
+    }, language });
   }
   return null;
 }

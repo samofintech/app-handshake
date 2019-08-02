@@ -37,6 +37,9 @@ module.exports = {
           "secretKey": {
             "type": "string"
           },
+          "revisions": {
+            "type": "object"
+          },
           "errorCodes": {
             "type": "object",
             "patternProperties": {

@@ -13,6 +13,9 @@ module.exports = {
       otpSize: 4,
       rejectUnknownUser: true,
       secretKey: 'dobietday',
+      revisions: {
+        serviceEntrypoints: '2019-01-01T00:00:00.000Z'
+      }
     },
     appRestfront: {
       contextPath: contextPath,
