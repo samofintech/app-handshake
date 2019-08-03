@@ -359,6 +359,11 @@ function generateOTP (packet = {}) {
           appType: appType,
           phoneNumber: user[appType].phoneNumber
         };
+        const fixedOTP = matchFixedOTP(obj, config);
+        if (fixedOTP != null) {
+          obj.otp = fixedOTP;
+          lodash.assign(packet, { skipped: true });
+        }
         const opts = {};
         return method([obj], opts).spread(function(otp) {
           return otp;
@@ -826,4 +831,18 @@ function parsePhoneNumber(phoneString, defaultCountryCode) {
 
 function isValidPhoneNumber(phoneString, defaultCountryCode) {
   return phoneUtil.isValidNumber(phoneUtil.parse(phoneString, defaultCountryCode));
+}
+
+function matchFixedOTP (verification = {}, config = {}) {
+  if (lodash.isArray(config.presetOTPs)) {
+    for(const i in config.presetOTPs) {
+      const pair = config.presetOTPs[i];
+      if (pair.enabled !== false && lodash.isString(pair.phoneNumber) && lodash.isString(pair.otp)) {
+        if (pair.phoneNumber === verification.phoneNumber) {
+          return pair.otp;
+        }
+      }
+    }
+  }
+  return null;
 }

@@ -5,6 +5,7 @@ var path = require('path');
 module.exports = {
   plugins: {
     appHandshake: {
+      presetOTPs: [],
       errorCodes: {
         // User
         UserNotFound: {

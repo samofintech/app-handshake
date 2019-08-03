@@ -40,6 +40,24 @@ module.exports = {
           "revisions": {
             "type": "object"
           },
+          "presetOTPs": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "enabled": {
+                  "type": "boolean"
+                },
+                "phoneNumber": {
+                  "type": "string"
+                },
+                "otp": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": false
+            }
+          },
           "errorCodes": {
             "type": "object",
             "patternProperties": {
