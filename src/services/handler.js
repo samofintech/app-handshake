@@ -237,7 +237,7 @@ function upsertUser (packet = {}) {
     return getModelMethodPromise(schemaManager, 'UserModel', 'findOneAndUpdate');
   })
   .then(function(method) {
-    const err = sanitizePhone(data, config, errorBuilder);
+    const err = sanitizePhone(data, config, errorBuilder, language);
     if (err) {
       return Promise.reject(err);
     }
@@ -260,13 +260,40 @@ function upsertUser (packet = {}) {
   });
 }
 
-function validateUser (packet = {}) {
-  const { schemaManager, errorBuilder, config, appType, language, data, device } = packet;
+function _findUserByHolderId({ schemaManager, config, appType, data, errorBuilder, language }) {
+  if (appType !== APPTYPE_AGENT) {
+    return Promise.reject(errorBuilder.newError('MethodUnsupportedAppType', {
+      payload: {
+        appType,
+      },
+      language
+    }));
+  }
   return Promise.resolve().then(function() {
     return getModelMethodPromise(schemaManager, 'UserModel', 'findOne');
   })
   .then(function(method) {
-    const err = sanitizePhone(data, config, errorBuilder);
+    const conditions = {};
+    conditions[[appType, "holderId"].join(".")] = data.holderId;
+
+    return method(conditions, null, {});
+  })
+}
+
+function _findUserByPhoneNumber({ schemaManager, config, appType, data, errorBuilder, language }) {
+  if (appType !== APPTYPE_AGENT) {
+    return Promise.reject(errorBuilder.newError('MethodUnsupportedAppType', {
+      payload: {
+        appType,
+      },
+      language
+    }));
+  }
+  return Promise.resolve().then(function() {
+    return getModelMethodPromise(schemaManager, 'UserModel', 'findOne');
+  })
+  .then(function(method) {
+    const err = sanitizePhone(data, config, errorBuilder, language);
     if (err) {
       return Promise.reject(err);
     }
@@ -276,6 +303,11 @@ function validateUser (packet = {}) {
 
     return method(conditions, null, {});
   })
+}
+
+function validateUser (packet = {}) {
+  const { schemaManager, errorBuilder, config, appType, language, data, device } = packet;
+  return _findUserByPhoneNumber(packet)
   .then(function(user) {
     if (!user) {
       if (config.rejectUnknownUser === false) {
@@ -600,7 +632,7 @@ function updateUser (packet = {}) {
     }
     p = p.then(function(method) {
       // sanitize the phone number
-      const err = sanitizePhone(data, config, errorBuilder);
+      const err = sanitizePhone(data, config, errorBuilder, language);
       if (err) {
         return Promise.reject(err);
       }
@@ -789,7 +821,7 @@ function validateAppType (packet) {
   return Promise.resolve(packet);
 }
 
-function sanitizePhone (data = {}, config = {}, errorBuilder) {
+function sanitizePhone (data = {}, config = {}, errorBuilder, language) {
   config.defaultCountryCode = config.defaultCountryCode || 'US';
   if (lodash.isEmpty(data.phoneNumber) && lodash.isEmpty(data.phone)) {
     return errorBuilder.newError('PhoneNumberMustBeNotNull', { language });
