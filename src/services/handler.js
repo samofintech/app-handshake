@@ -321,11 +321,12 @@ function validateUser (packet = {}) {
             return user;
           });
         });
-      } else {
-        return Promise.reject(errorBuilder.newError('UserNotFound', { payload: {
-          phoneNumber: data.phoneNumber
-        }, language }));
       }
+    }
+    if (!user) {
+      return Promise.reject(errorBuilder.newError('UserNotFound', { payload: {
+        phoneNumber: data.phoneNumber
+      }, language }));
     }
     if (user.activated == false) {
       return Promise.reject(errorBuilder.newError('UserIsLocked', { payload: {
