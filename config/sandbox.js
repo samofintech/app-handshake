@@ -85,8 +85,13 @@ module.exports = {
           returnCode: 1142,
           statusCode: 400
         },
-        VerificationCouldNotBeSaved: {
-          message: 'Could not save verification object',
+        VerificationCouldNotBeCreated: {
+          message: 'Could not create a new verification object',
+          returnCode: 1146,
+          statusCode: 400
+        },
+        VerificationCouldNotBeUpdated: {
+          message: 'Could not update the verification object',
           returnCode: 1143,
           statusCode: 400
         },

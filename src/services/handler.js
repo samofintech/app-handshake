@@ -110,6 +110,13 @@ function Handler(params = {}) {
       .then(detachServices);
   }
 
+  this.getVerification = function (packet) {
+    return validateAppType(packet)
+      .then(attachServices)
+      .then(getVerification)
+      .then(detachServices);
+  }
+
   this.resetVerification = function (packet) {
     return validateAppType(packet)
       .then(attachServices)
@@ -375,6 +382,14 @@ function generateOTP (packet = {}) {
     }
   })
   .then(function(verification) {
+    if (!verification) {
+      return Promise.reject(errorBuilder.newError('VerificationCouldNotBeCreated', {
+        payload: {
+          appType: appType,
+        },
+        language
+      }));
+    }
     return lodash.assign(packet, { verification });
   })
 }
@@ -445,7 +460,7 @@ function verifyOTP (packet = {}) {
   })
   .then(function(verification) {
     if (!verification) {
-      return Promise.reject(errorBuilder.newError('VerificationCouldNotBeSaved', { payload: {
+      return Promise.reject(errorBuilder.newError('VerificationCouldNotBeUpdated', { payload: {
         key: data.key,
       }, language }));
     }
@@ -660,6 +675,34 @@ function updateUser (packet = {}) {
       user = user.toJSON();
     }
     return lodash.assign(packet, { user });
+  });
+
+  return p;
+}
+
+function getVerification (packet = {}) {
+  const { schemaManager, errorBuilder, config, appType, language, data } = packet;
+
+  let p = Promise.resolve();
+  if (appType === APPTYPE_AGENT) {
+    if (data.holderId) {
+      p = _findUserByHolderId(packet);
+    }
+    if (data.phoneNumber) {
+      p = _findUserByPhoneNumber(packet);
+    }
+  }
+
+  p = p.then(function(user) {
+    return _checkUser(packet, user);
+  })
+  .then(function(user) {
+    return generateOTP(lodash.assign(packet, { user, device: lodash.pick(user, [appType, 'device']) }));
+  })
+  .then(function({ verification }) {
+    return lodash.assign(packet, {
+      data: lodash.pick(verification, ['key', 'otp', 'expiredIn', 'expiredTime', 'verified'])
+    });
   });
 
   return p;
