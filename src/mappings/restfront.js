@@ -207,6 +207,38 @@ var mappings = [
     },
   },
   {
+    path: [
+      '/util/get-verification', '/util/get-verification/:appType'
+    ],
+    method: 'POST',
+    input: {
+      examples: [
+        {
+          path: '/util/get-verification/agent',
+          body: {
+            holderId: "5d2c53f6cbc31a7849913058",
+            phoneNumber: "+84999999999",
+          },
+        },
+      ],
+      transform: function(req) {
+        return {
+          appType: extractAppType(req),
+          language: extractLangCode(req),
+          data: req.body
+        }
+      }
+    },
+    serviceName: 'app-handshake/handler',
+    methodName: 'getVerification',
+    output: {
+      transform: transformOutput,
+    },
+    error: {
+      transform: transformError,
+    },
+  },
+  {
     path: ['/util/reset-verification', '/util/reset-verification/:appType'],
     method: 'POST',
     input: {
