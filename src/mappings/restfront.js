@@ -137,6 +137,39 @@ var mappings = [
   },
   {
     path: [
+      '/util/get-user', '/util/get-user/:appType'
+    ],
+    method: 'POST',
+    input: {
+      examples: [
+        {
+          path: '/util/get-user/agent',
+          body: {
+            email: "john.doe@gmail.com",
+            holderId: "5d2c53f6cbc31a7849913058",
+            phoneNumber: "+84999999999",
+          },
+        },
+      ],
+      transform: function(req) {
+        return {
+          appType: extractAppType(req),
+          language: extractLangCode(req),
+          data: req.body
+        }
+      }
+    },
+    serviceName: 'app-handshake/handler',
+    methodName: 'getUser',
+    output: {
+      transform: transformOutput,
+    },
+    error: {
+      transform: transformError,
+    },
+  },
+  {
+    path: [
       '/auth/update-user', '/auth/update-user/:appType', //@Deprecated
       '/util/synchronize-user', '/util/synchronize-user/:appType'
     ],
