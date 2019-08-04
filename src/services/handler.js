@@ -147,24 +147,9 @@ function loginAdminApp (packet = {}) {
     return method(conditions, null, {});
   })
   .then(function(user) {
-    if (!user) {
-      return Promise.reject(errorBuilder.newError('UserNotFound', { payload: {
-        appType: appType,
-        username: data.username
-      }, language }));
-    }
-    if (user.activated == false) {
-      return Promise.reject(errorBuilder.newError('UserIsLocked', { payload: {
-        appType: appType,
-        username: data.username
-      }, language }));
-    }
-    if (user.deleted == true) {
-      return Promise.reject(errorBuilder.newError('UserIsDeleted', { payload: {
-        appType: appType,
-        username: data.username
-      }, language }));
-    }
+    return _checkUser(packet, user);
+  })
+  .then(function(user) {
     // verify the password
     const encPasswd = lodash.get(user, [appType, 'password'], null);
     if (encPasswd === null) {
@@ -309,37 +294,22 @@ function validateUser (packet = {}) {
   const { schemaManager, errorBuilder, config, appType, language, data, device } = packet;
   return _findUserByPhoneNumber(packet)
   .then(function(user) {
-    if (!user) {
-      if (config.rejectUnknownUser === false) {
-        const user = {};
-        user[appType] = { device };
-        assignUserData(appType, user, data);
-        const userCreate = getModelMethodPromise(schemaManager, 'UserModel', 'create');
-        return userCreate.then(function(method) {
-          const opts = {};
-          return method([user], opts).spread(function(user) {
-            return user;
-          });
+    if (!user && config.rejectUnknownUser === false) {
+      const user = {};
+      user[appType] = { device };
+      assignUserData(appType, user, data);
+      const userCreate = getModelMethodPromise(schemaManager, 'UserModel', 'create');
+      return userCreate.then(function(method) {
+        const opts = {};
+        return method([user], opts).spread(function(user) {
+          return user;
         });
-      }
+      });
     }
-    if (!user) {
-      return Promise.reject(errorBuilder.newError('UserNotFound', { payload: {
-        phoneNumber: data.phoneNumber
-      }, language }));
-    }
-    if (user.activated == false) {
-      return Promise.reject(errorBuilder.newError('UserIsLocked', { payload: {
-        phoneNumber: data.phoneNumber
-      }, language }));
-    }
-    if (user.deleted == true) {
-      return Promise.reject(errorBuilder.newError('UserIsDeleted', { payload: {
-        phoneNumber: data.phoneNumber
-      }, language }));
-    }
-    lodash.assign(user[appType], { device: device });
-    return user.save();
+    return _checkUser(packet, user).then(function(user) {
+      lodash.assign(user[appType], { device: device });
+      return user.save();
+    })
   })
   .then(function(user) {
     return lodash.assign(packet, { user });
@@ -878,4 +848,30 @@ function matchFixedOTP (verification = {}, config = {}) {
     }
   }
   return null;
+}
+
+function _extractUserQuery(appType, data) {
+  return lodash.assign({ appType }, lodash.pick(data, ['holderId', 'phoneNumber', 'username']));
+}
+
+function _checkUser ({ appType, errorBuilder, language, data }, user) {
+  if (!user) {
+    return Promise.reject(errorBuilder.newError('UserNotFound', {
+      payload: _extractUserQuery(appType, data),
+      language
+    }));
+  }
+  if (user.activated == false) {
+    return Promise.reject(errorBuilder.newError('UserIsLocked', {
+      payload: _extractUserQuery(appType, data),
+      language
+    }));
+  }
+  if (user.deleted == true) {
+    return Promise.reject(errorBuilder.newError('UserIsDeleted', {
+      payload: _extractUserQuery(appType, data),
+      language
+    }));
+  }
+  return Promise.resolve(user);
 }
