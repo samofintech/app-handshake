@@ -25,7 +25,8 @@
     "prepublish": "npm run clean && cross-env NODE_ENV=production npm run build",
     "pretest": "npm run clean && cross-env NODE_ENV=test npm run build",
     "test": "mocha ./test/{bdd,tdd}/*test.js",
-    "verify": "npm run prepublish && mocha ./test/{bdd,tdd}/*test.js"
+    "verify": "npm run prepublish && mocha ./test/{bdd,tdd}/*test.js",
+    "eslint": "eslint ./src/ --quiet"
   },
   "keywords": [
     "devebot",

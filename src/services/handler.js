@@ -1,6 +1,5 @@
 'use strict';
 
-const assert = require('assert');
 const Devebot = require('devebot');
 const Promise = Devebot.require('bluebird');
 const chores = Devebot.require('chores');
@@ -23,7 +22,6 @@ function Handler(params = {}) {
   const L = params.loggingFactory.getLogger();
   const T = params.loggingFactory.getTracer();
   const packageName = params.packageName || 'app-handshake';
-  const blockRef = chores.getBlockRef(__filename, packageName);
 
   const { bcryptor, oauthApi, errorManager, sandboxRegistry, schemaManager } = params;
 
@@ -198,7 +196,7 @@ function loginAdminApp (packet = {}) {
       refresh_token: user[appType].refreshToken,
       expires_in: expiredIn,
     }
-    return lodash.assign(packet, {data: { auth, user } });
+    return lodash.assign(packet, { data: { auth, user } });
   });
 }
 
@@ -220,35 +218,6 @@ function upsertDevice (packet = {}) {
   })
   .then(function(device) {
     return lodash.assign(packet, { device });
-  });
-}
-
-function upsertUser (packet = {}) {
-  const { schemaManager, errorBuilder, config, appType, language, data, device } = packet;
-  return Promise.resolve().then(function() {
-    return getModelMethodPromise(schemaManager, 'UserModel', 'findOneAndUpdate');
-  })
-  .then(function(method) {
-    const err = sanitizePhone(data, config, errorBuilder, language);
-    if (err) {
-      return Promise.reject(err);
-    }
-
-    const conditions = {};
-    conditions[[appType, "phoneNumber"].join(".")] = data.phoneNumber;
-
-    const userObject = {};
-    userObject[appType] = {
-      device: device,
-      phoneNumber: data.phoneNumber,
-      phone: data.phone,
-      corpId: data.org
-    }
-
-    return method(conditions, userObject, { new: true, upsert: true });
-  })
-  .then(function(user) {
-    return lodash.assign(packet, { user });
   });
 }
 
@@ -298,7 +267,7 @@ function _findUserByPhoneNumber({ schemaManager, config, appType, data, errorBui
 }
 
 function validateUser (packet = {}) {
-  const { schemaManager, errorBuilder, config, appType, language, data, device } = packet;
+  const { schemaManager, config, appType, data, device } = packet;
   return _findUserByPhoneNumber(packet)
   .then(function(user) {
     if (!user && config.rejectUnknownUser === false) {
@@ -324,7 +293,7 @@ function validateUser (packet = {}) {
 }
 
 function generateOTP (packet = {}) {
-  const { schemaManager, errorBuilder, config, appType, language, data, user, device } = packet;
+  const { schemaManager, errorBuilder, config, appType, language, user, device } = packet;
   return Promise.resolve().then(function() {
     return getModelMethodPromise(schemaManager, 'VerificationModel', 'findOne');
   })
@@ -418,7 +387,16 @@ function registerEnd (packet = {}) {
 }
 
 function verifyOTP (packet = {}) {
-  const { schemaManager, errorBuilder, oauthApi, config, appType, language, data } = packet;
+  const { schemaManager, errorBuilder, oauthApi, appType, language, data } = packet;
+  if (appType !== APPTYPE_AGENT) {
+    return Promise.reject(errorBuilder.newError('MethodUnsupportedForAppType', {
+      payload: {
+        appType: appType,
+        method: 'verifyOTP'
+      },
+      language
+    }));
+  }
   return Promise.resolve().then(function() {
     return getModelMethodPromise(schemaManager, 'VerificationModel', 'findOne');
   })
@@ -500,7 +478,7 @@ function verifyOTP (packet = {}) {
       refresh_token: user[verification.appType].refreshToken,
       expires_in: verification.expiredIn,
     }
-    return lodash.assign(packet, {data: { auth, user } })
+    return lodash.assign(packet, { data: { auth, user } })
   });
 }
 
@@ -681,7 +659,7 @@ function updateUser (packet = {}) {
 }
 
 function getVerification (packet = {}) {
-  const { schemaManager, errorBuilder, config, appType, language, data } = packet;
+  const { appType, data } = packet;
 
   let p = Promise.resolve();
   if (appType === APPTYPE_AGENT) {
@@ -790,7 +768,7 @@ function assignUserData (appType, user = {}, data = {}, bcryptor) {
 }
 
 function revokeToken (packet = {}) {
-  const { schemaManager, config, appType, data } = packet;
+  const { schemaManager, appType, data } = packet;
   let p = getModelMethodPromise(schemaManager, 'UserModel', 'findOne');
   if (appType === APPTYPE_ADMIN) {
     p = p.then(function(method) {
@@ -881,7 +859,7 @@ function isValidPhoneNumber(phoneString, defaultCountryCode) {
 
 function matchFixedOTP (verification = {}, config = {}) {
   if (lodash.isArray(config.presetOTPs)) {
-    for(const i in config.presetOTPs) {
+    for (const i in config.presetOTPs) {
       const pair = config.presetOTPs[i];
       if (pair.enabled !== false && lodash.isString(pair.phoneNumber) && lodash.isString(pair.otp)) {
         if (pair.phoneNumber === verification.phoneNumber) {

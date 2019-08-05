@@ -1,5 +1,7 @@
 'use strict';
 
+var Devebot = require('devebot');
+var Bluebird = Devebot.require('bluebird');
 var lodash = Devebot.require('lodash');
 
 var mappings = [

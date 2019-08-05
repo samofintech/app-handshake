@@ -4,7 +4,7 @@ const Devebot = require('devebot');
 const lodash = Devebot.require('lodash');
 const jwt = require('jsonwebtoken');
 
-function OauthApi(params = {}) {
+function OauthApi (params = {}) {
   const L = params.loggingFactory.getLogger();
   const T = params.loggingFactory.getTracer();
   const config = lodash.get(params, ['sandboxConfig'], {});
@@ -18,6 +18,9 @@ function OauthApi(params = {}) {
     const token = jwt.sign(data, config.secretKey || 't0ps3cr3t', {
       expiresIn: data.expiredIn || config.otpExpiredIn
     });
+    L.has('debug') && L.log('debug', T.add({ token }).toMessage({
+      text: 'A new access-token has been created'
+    }));
     return token;
   }
 }

@@ -1,5 +1,6 @@
 'use strict';
 
+const Devebot = require('devebot');
 const lodash = Devebot.require('lodash');
 const bcryptjs = require('bcryptjs');
 

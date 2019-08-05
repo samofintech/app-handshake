@@ -1,8 +1,5 @@
 'use strict';
 
-const mongoose = require('app-datastore').require('mongoose');
-const Schema = mongoose.Schema;
-
 /**
  *
  * Device Model
