@@ -243,9 +243,10 @@ function _findUserByHolderId({ schemaManager, config, appType, data, errorBuilde
 
 function _findUserByPhoneNumber({ schemaManager, config, appType, data, errorBuilder, language }) {
   if (appType !== APPTYPE_AGENT) {
-    return Promise.reject(errorBuilder.newError('MethodUnsupportedAppType', {
+    return Promise.reject(errorBuilder.newError('MethodUnsupportedForAppType', {
       payload: {
         appType,
+        method: '_findUserByPhoneNumber'
       },
       language
     }));

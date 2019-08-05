@@ -5,8 +5,13 @@ var path = require('path');
 module.exports = {
   plugins: {
     appHandshake: {
-      presetOTPs: [],
       errorCodes: {
+        // Methods
+        MethodUnsupportedForAppType: {
+          message: 'The method[${method}] is unsupported for the appType[${appType}]',
+          returnCode: 1100,
+          statusCode: 400
+        },
         // User
         UserNotFound: {
           message: 'user not found',
@@ -122,7 +127,8 @@ module.exports = {
           returnCode: 1161,
           statusCode: 400
         },
-      }
+      },
+      presetOTPs: [],
     },
     appRestfront: {
       mappingStore: {
@@ -130,7 +136,6 @@ module.exports = {
       }
     },
     appRestfetch: {
-      
     },
     appDatastore: {
       mappingStore: {
