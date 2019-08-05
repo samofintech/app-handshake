@@ -81,7 +81,7 @@ function Handler(params = {}) {
   }
 
   this.verificationCode = function (packet) {
-    return Promise.resolve(packet)
+    return validateAppType(packet)
       .then(attachServices)
       .then(verifyOTP)
       .then(detachServices);
@@ -222,14 +222,6 @@ function upsertDevice (packet = {}) {
 }
 
 function _findUserByHolderId({ schemaManager, config, appType, data, errorBuilder, language }) {
-  if (appType !== APPTYPE_AGENT) {
-    return Promise.reject(errorBuilder.newError('MethodUnsupportedAppType', {
-      payload: {
-        appType,
-      },
-      language
-    }));
-  }
   return Promise.resolve().then(function() {
     return getModelMethodPromise(schemaManager, 'UserModel', 'findOne');
   })
@@ -242,15 +234,6 @@ function _findUserByHolderId({ schemaManager, config, appType, data, errorBuilde
 }
 
 function _findUserByPhoneNumber({ schemaManager, config, appType, data, errorBuilder, language }) {
-  if (appType !== APPTYPE_AGENT) {
-    return Promise.reject(errorBuilder.newError('MethodUnsupportedForAppType', {
-      payload: {
-        appType,
-        method: '_findUserByPhoneNumber'
-      },
-      language
-    }));
-  }
   return Promise.resolve().then(function() {
     return getModelMethodPromise(schemaManager, 'UserModel', 'findOne');
   })
@@ -313,7 +296,7 @@ function generateOTP (packet = {}) {
     const nowPlus = now.add(config.otpTypingTime, 'seconds');
     if (verification) {
       if (verification.expiredTime) {
-        const oldExpiredTime = new moment(verification.expiredTime);
+        const oldExpiredTime = moment(verification.expiredTime);
         if (nowPlus.isAfter(oldExpiredTime)) {
           // there is no time to press the received token, create another verification
           verification = null;
@@ -420,7 +403,7 @@ function verifyOTP (packet = {}) {
       }, language }));
     }
     const now = moment();
-    const expiredTime = new moment(verification.expiredTime);
+    const expiredTime = moment(verification.expiredTime);
     if (now.isAfter(expiredTime)) {
       return Promise.reject(errorBuilder.newError('OTPHasExpired', { payload: {
         key: data.key,
