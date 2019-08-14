@@ -277,6 +277,7 @@ function validateUser (packet = {}) {
 }
 
 function generateOTP (packet = {}) {
+  const { T, L } = packet;
   const { schemaManager, errorBuilder, config, appType, language, user, device } = packet;
   return Promise.resolve().then(function() {
     return getModelMethodPromise(schemaManager, 'VerificationModel', 'findOne');
@@ -348,6 +349,7 @@ function generateOTP (packet = {}) {
 }
 
 function sendOTP (packet = {}) {
+  const { T, L } = packet;
   const { packageName, config, serviceSelector, verification, skipped } = packet;
   if (skipped === true) {
     return Promise.resolve(packet);
@@ -355,9 +357,18 @@ function sendOTP (packet = {}) {
   const messenderService = [packageName, 'messender'].join(chores.getSeparator());
   const ref = serviceSelector.lookupMethod(messenderService, 'sendSMS');
   if (ref.service && ref.method) {
-    ref.method({
+    L.has('debug') && L.log('debug', T.add({
+      phoneNumber: verification.phoneNumber
+    }).toMessage({
+      tmpl: 'An OTP has been created for phone: ${phoneNumber}'
+    }))
+    Promise.resolve(ref.method({
       text: format(config.smsTemplate, { otp: verification.otp }),
       phoneNumber: verification.phoneNumber,
+    })).then(function(smsResult) {
+      L.has('debug') && L.log('debug', T.add({ smsResult }).toMessage({
+        tmpl: 'SendSMS result: ${smsResult}'
+      }))
     });
   }
   return Promise.resolve(packet);
