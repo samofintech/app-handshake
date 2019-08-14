@@ -1,10 +1,10 @@
 'use strict';
 
-var Devebot = require('devebot');
-var Bluebird = Devebot.require('bluebird');
-var lodash = Devebot.require('lodash');
+const Devebot = require('devebot');
+const Bluebird = Devebot.require('bluebird');
+const lodash = Devebot.require('lodash');
 
-var mappings = [
+const apiMaps = [
   {
     path: ['/auth/login', '/auth/login/:appType'],
     method: 'POST',
@@ -314,9 +314,7 @@ var mappings = [
       transform: transformError,
     },
   },
-]
-
-module.exports = mappings;
+];
 
 function extractAppType (req) {
   return req.params.appType || req.get('X-App-Type') || 'agent';
@@ -353,3 +351,5 @@ function transformError (err, req) {
   }
   return output;
 }
+
+module.exports = { apiMaps };
