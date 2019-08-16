@@ -61,8 +61,8 @@ function Handler(params = {}) {
     return lodash.omit(packet, lodash.keys(ctx));
   }
 
-  this.register = function (packet) {
-    return validateAppType(packet).then(function(packet) {
+  this.register = function (packet, options) {
+    return validateAppType(injectOptions(packet, options)).then(function(packet) {
       if (packet.appType === APPTYPE_ADMIN) {
         return Promise.resolve(packet)
           .then(attachServices)
@@ -80,43 +80,43 @@ function Handler(params = {}) {
     })
   }
 
-  this.verificationCode = function (packet) {
-    return validateAppType(packet)
+  this.verificationCode = function (packet, options) {
+    return validateAppType(injectOptions(packet, options))
       .then(attachServices)
       .then(verifyOTP)
       .then(detachServices);
   }
 
-  this.refreshToken = function (packet) {
-    return validateAppType(packet)
+  this.refreshToken = function (packet, options) {
+    return validateAppType(injectOptions(packet, options))
       .then(attachServices)
       .then(refreshToken)
       .then(detachServices);
   }
 
-  this.revokeToken = function (packet) {
-    return validateAppType(packet)
+  this.revokeToken = function (packet, options) {
+    return validateAppType(injectOptions(packet, options))
       .then(attachServices)
       .then(revokeToken)
       .then(detachServices);
   }
 
-  this.updateUser = function (packet) {
-    return validateAppType(packet)
+  this.updateUser = function (packet, options) {
+    return validateAppType(injectOptions(packet, options))
       .then(attachServices)
       .then(updateUser)
       .then(detachServices);
   }
 
-  this.getVerification = function (packet) {
-    return validateAppType(packet)
+  this.getVerification = function (packet, options) {
+    return validateAppType(injectOptions(packet, options))
       .then(attachServices)
       .then(getVerification)
       .then(detachServices);
   }
 
-  this.resetVerification = function (packet) {
-    return validateAppType(packet)
+  this.resetVerification = function (packet, options) {
+    return validateAppType(injectOptions(packet, options))
       .then(attachServices)
       .then(resetVerification)
       .then(detachServices);
@@ -350,7 +350,7 @@ function generateOTP (packet = {}) {
 
 function sendOTP (packet = {}) {
   const { T, L } = packet;
-  const { packageName, config, serviceSelector, verification, skipped } = packet;
+  const { packageName, config, serviceSelector, verification, skipped, options } = packet;
   if (skipped === true) {
     return Promise.resolve(packet);
   }
@@ -362,10 +362,11 @@ function sendOTP (packet = {}) {
     }).toMessage({
       tmpl: 'An OTP has been created for phone: ${phoneNumber}'
     }))
-    Promise.resolve(ref.method({
+    const msgInfo = {
       text: format(config.smsTemplate, { otp: verification.otp }),
       phoneNumber: verification.phoneNumber,
-    })).then(function(smsResult) {
+    }
+    Promise.resolve(ref.method(msgInfo, options)).then(function(smsResult) {
       L.has('debug') && L.log('debug', T.add({ smsResult }).toMessage({
         tmpl: 'SendSMS result: ${smsResult}'
       }))
@@ -787,6 +788,10 @@ function revokeToken (packet = {}) {
     return Promise.resolve({});
   });
   return p;
+}
+
+function injectOptions (packet = {}, options) {
+  return Object.assign(packet, { options });
 }
 
 function sanitizeAppType(appType) {

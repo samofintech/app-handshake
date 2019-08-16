@@ -4,7 +4,7 @@ const Devebot = require('devebot');
 const Bluebird = Devebot.require('bluebird');
 
 function Messender (params = {}) {
-  this.sendSMS = function() {
+  this.sendSMS = function(msgInfo, reqOpts) {
     return Bluebird.resolve({
       message: 'This is the non-effect action'
     });
