@@ -135,6 +135,8 @@ module.exports = {
         "handshake-restfront": path.join(__dirname, '../lib/mappings/restfront')
       }
     },
+    appRestfetch: {
+    },
     appDatastore: {
       mappingStore: {
         "handshake-datastore": path.join(__dirname, '../lib/mappings/datastore')
