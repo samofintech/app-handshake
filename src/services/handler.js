@@ -105,6 +105,7 @@ function Handler(params = {}) {
     return validateAppType(injectOptions(packet, options))
       .then(attachServices)
       .then(updateUser)
+      .then(filterUserInfo)
       .then(detachServices);
   }
 
@@ -527,6 +528,28 @@ function refreshToken (packet = {}) {
     }
     return lodash.assign(packet, { data: { auth } });
   });
+}
+
+function filterUserInfo (packet = {}) {
+  const { appType, user = {} } = packet;
+
+  let data = lodash.assign({
+    userId: user._id,
+  }, lodash.pick(user, ['firstName', 'lastName', 'email', 'activated', 'deleted', 'tags']));
+
+  if (appType === APPTYPE_ADMIN) {
+    data = lodash.assign(data, lodash.pick(lodash.get(user, appType), [
+      'holderId', 'username', 'permissions'
+    ]));
+  }
+
+  if (appType === APPTYPE_AGENT) {
+    data = lodash.assign(data, lodash.pick(lodash.get(user, appType), [
+      'holderId', 'phoneNumber'
+    ]));
+  }
+
+  return lodash.assign(packet, { data });
 }
 
 function updateUser (packet = {}) {
