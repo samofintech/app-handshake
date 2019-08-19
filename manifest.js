@@ -61,7 +61,7 @@ module.exports = {
           "errorCodes": {
             "type": "object",
             "patternProperties": {
-              ".+": {
+              "^[a-zA-Z]\\w*$": {
                 "type": "object",
                 "properties": {
                   "message": {
@@ -86,7 +86,8 @@ module.exports = {
                 },
                 "additionalProperties": false
               }
-            }
+            },
+            "additionalProperties": false
           },
         },
         "additionalProperties": false
