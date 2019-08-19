@@ -195,6 +195,7 @@ function loginAdminApp (packet = {}) {
       }),
       refresh_token: user[appType].refreshToken,
       expires_in: expiredIn,
+      expired_time: expiredTime,
     }
     return lodash.assign(packet, { data: { auth, user } });
   });
@@ -473,6 +474,7 @@ function verifyOTP (packet = {}) {
       }),
       refresh_token: user[verification.appType].refreshToken,
       expires_in: verification.expiredIn,
+      expired_time: verification.expiredTime,
     }
     return lodash.assign(packet, { data: { auth, user } })
   });
@@ -520,6 +522,7 @@ function refreshToken (packet = {}) {
       access_token: oauthApi.createAppAccessToken({ user, constraints }),
       refresh_token: user[appType].refreshToken,
       expires_in: expiredIn,
+      expired_time: expiredTime,
       revisions: revisions,
     }
     return lodash.assign(packet, { data: { auth } });

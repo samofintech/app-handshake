@@ -19,7 +19,18 @@ module.exports = {
     },
     appRestfront: {
       contextPath: contextPath,
-      apiPath: ''
+      apiPath: '',
+      requestOptions: {
+        requestId: {
+          headerName: 'X-Request-Id',
+          optionName: 'requestId',
+          required: true,
+        },
+        schemaVersion: {
+          headerName: 'X-Schema-Version',
+          required: false,
+        },
+      },
     },
     appDatastore: {
     },

@@ -343,6 +343,9 @@ function transformError (err, req) {
       message: err.message
     }
   };
+  if (err.packageRef) {
+    output.headers['X-Package-Ref'] = err.packageRef;
+  }
   if (err.returnCode) {
     output.headers['X-Return-Code'] = err.returnCode;
   }
