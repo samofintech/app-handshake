@@ -885,8 +885,8 @@ function isValidPhoneNumber(phoneString, defaultCountryCode) {
 }
 
 function matchFixedOTP (packet = {}, phoneNumber) {
-  const { config } = packet;
-  if (lodash.isArray(config.presetOTPs)) {
+  const { config, schemaManager } = packet;
+  if (lodash.isArray(config.presetOTPs) && !lodash.isEmpty(config.presetOTPs)) {
     for (const i in config.presetOTPs) {
       const pair = config.presetOTPs[i];
       if (pair.enabled !== false && lodash.isString(pair.phoneNumber) && lodash.isString(pair.otp)) {
@@ -895,6 +895,22 @@ function matchFixedOTP (packet = {}, phoneNumber) {
         }
       }
     }
+  } else {
+    return getModelMethodPromise(schemaManager, 'FixedotpModel', 'findOne')
+    .then(function(method) {
+      const conditions = {
+        phoneNumber: phoneNumber
+      };
+      const opts = {};
+      return method(conditions, null, opts);
+    })
+    .then(function(fixedotp) {
+      if (fixedotp && fixedotp.enabled !== false) {
+        return fixedotp.otp;
+      } else {
+        return null;
+      }
+    });
   }
   return Promise.resolve(null);
 }
