@@ -325,7 +325,7 @@ function generateOTP (packet = {}) {
           appType: appType,
           phoneNumber: user[appType].phoneNumber
         };
-        return Promise.resolve(matchFixedOTP(obj, config)).then(function (fixedOTP) {
+        return matchFixedOTP(packet, obj.phoneNumber).then(function (fixedOTP) {
           if (fixedOTP != null) {
             obj.otp = fixedOTP;
             lodash.assign(packet, { skipped: true });
@@ -884,18 +884,19 @@ function isValidPhoneNumber(phoneString, defaultCountryCode) {
   return phoneUtil.isValidNumber(phoneUtil.parse(phoneString, defaultCountryCode));
 }
 
-function matchFixedOTP (verification = {}, config = {}) {
+function matchFixedOTP (packet = {}, phoneNumber) {
+  const { config } = packet;
   if (lodash.isArray(config.presetOTPs)) {
     for (const i in config.presetOTPs) {
       const pair = config.presetOTPs[i];
       if (pair.enabled !== false && lodash.isString(pair.phoneNumber) && lodash.isString(pair.otp)) {
-        if (pair.phoneNumber === verification.phoneNumber) {
-          return pair.otp;
+        if (pair.phoneNumber === phoneNumber) {
+          return Promise.resolve(pair.otp);
         }
       }
     }
   }
-  return null;
+  return Promise.resolve(null);
 }
 
 function _extractUserQuery(appType, data) {
