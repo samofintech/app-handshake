@@ -325,14 +325,15 @@ function generateOTP (packet = {}) {
           appType: appType,
           phoneNumber: user[appType].phoneNumber
         };
-        const fixedOTP = matchFixedOTP(obj, config);
-        if (fixedOTP != null) {
-          obj.otp = fixedOTP;
-          lodash.assign(packet, { skipped: true });
-        }
-        const opts = {};
-        return method([obj], opts).spread(function(otp) {
-          return otp;
+        return Promise.resolve(matchFixedOTP(obj, config)).then(function (fixedOTP) {
+          if (fixedOTP != null) {
+            obj.otp = fixedOTP;
+            lodash.assign(packet, { skipped: true });
+          }
+          const opts = {};
+          return method([obj], opts).spread(function(otp) {
+            return otp;
+          });
         });
       });
     }
