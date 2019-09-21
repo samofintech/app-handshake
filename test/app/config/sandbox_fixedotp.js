@@ -14,11 +14,6 @@ module.exports = {
           phoneNumber: '+84123456789',
           otp: '2222'
         },
-        {
-          enabled: true,
-          phoneNumber: '+84973407139',
-          otp: '3333'
-        },
       ]
     }
   }
