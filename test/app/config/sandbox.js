@@ -1,6 +1,8 @@
 'use strict';
 
 var contextPath = '/handshake';
+var Devebot = require('devebot');
+var chores = Devebot.require('chores');
 
 module.exports = {
   application: {
@@ -12,6 +14,9 @@ module.exports = {
       otpTypingTime: 5 * 60,
       otpSize: 4,
       rejectUnknownUser: true,
+      createIfUserNotFound: function ({ schemaVersion }) {
+        return chores.isVersionGTE(schemaVersion, "1.1.0");
+      },
       secretKey: 'dobietday',
       revisions: {
         serviceEntrypoints: '2019-01-01T00:00:00.000Z'

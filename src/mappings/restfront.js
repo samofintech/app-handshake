@@ -9,10 +9,11 @@ const apiMaps = [
     path: ['/auth/login', '/auth/login/:appType'],
     method: 'POST',
     input: {
-      transform: function(req) {
+      transform: function(req, reqOpts) {
         return {
           appType: extractAppType(req),
           language: extractLangCode(req),
+          schemaVersion: reqOpts.schemaVersion,
           data: req.body
         }
       },

@@ -257,16 +257,18 @@ function validateUser (packet = {}) {
   return _findUserByPhoneNumber(packet)
   .then(function(user) {
     if (!user && config.rejectUnknownUser === false) {
-      const user = {};
-      user[appType] = { device };
-      assignUserData(appType, user, data);
-      const userCreate = getModelMethodPromise(schemaManager, 'UserModel', 'create');
-      return userCreate.then(function(method) {
-        const opts = {};
-        return method([user], opts).spread(function(user) {
-          return user;
+      if (!lodash.isFunction(config.createIfUserNotFound) || config.createIfUserNotFound(packet)) {
+        const user = {};
+        user[appType] = { device };
+        assignUserData(appType, user, data);
+        const userCreate = getModelMethodPromise(schemaManager, 'UserModel', 'create');
+        return userCreate.then(function(method) {
+          const opts = {};
+          return method([user], opts).spread(function(user) {
+            return user;
+          });
         });
-      });
+      }
     }
     return _checkUser(packet, user).then(function(user) {
       lodash.assign(user[appType], { device: device });

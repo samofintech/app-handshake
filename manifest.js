@@ -34,6 +34,8 @@ module.exports = {
           "rejectUnknownUser": {
             "type": "boolean"
           },
+          "createIfUserNotFound": {
+          },
           "secretKey": {
             "type": "string"
           },
