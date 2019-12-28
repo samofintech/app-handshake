@@ -1,49 +1,50 @@
-'use strict';
+"use strict";
 
-const Devebot = require('devebot');
-const Promise = Devebot.require('bluebird');
-const chores = Devebot.require('chores');
-const lodash = Devebot.require('lodash');
-const logolite = Devebot.require('logolite');
+const Devebot = require("devebot");
+const Promise = Devebot.require("bluebird");
+const chores = Devebot.require("chores");
+const lodash = Devebot.require("lodash");
+const logolite = Devebot.require("logolite");
 const format = logolite.LogFormat;
 const genKey = logolite.LogConfig.getLogID;
-const moment = require('moment');
-const util = require('util');
-const glpn = require('google-libphonenumber');
+const moment = require("moment");
+const util = require("util");
+const glpn = require("google-libphonenumber");
 const phoneUtil = glpn.PhoneNumberUtil.getInstance();
-const otp = require('../utils/otp-generator');
+const otp = require("../utils/otp-generator");
 const otpDefaultOpts = { alphabets: false, upperCase: false, specialChars: false };
-const mongoose = require('app-datastore').require('mongoose');
+const mongoose = require("app-datastore").require("mongoose");
 
-const APPTYPE_ADMIN = 'adminApp';
-const APPTYPE_AGENT = 'agentApp';
+const APPTYPE_ADMIN = "adminApp";
+const APPTYPE_AGENT = "agentApp";
+const APPTYPE_CLIENT = "clientApp";
 
-function Handler(params = {}) {
+function Handler (params = {}) {
   const L = params.loggingFactory.getLogger();
   const T = params.loggingFactory.getTracer();
-  const packageName = params.packageName || 'app-handshake';
+  const packageName = params.packageName || "app-handshake";
 
   const { bcryptor, oauthApi, errorManager, sandboxRegistry, schemaManager } = params;
 
-  const config = lodash.get(params, ['sandboxConfig'], {});
+  const config = lodash.get(params, ["sandboxConfig"], {});
   config.otpExpiredIn = config.otpExpiredIn || 15 * 60;
   config.otpTypingTime = config.otpTypingTime || 2 * 60;
   config.otpSize = config.otpSize || 7;
   config.smsTemplate = config.smsTemplate ||
-    'Please use the code - ${otp} to verify your phone for app authentication';
+    "Please use the code - ${otp} to verify your phone for app authentication";
   config.tokenExpiredIn = config.tokenExpiredIn || 15 * 60;
-  config.defaultCountryCode = config.defaultCountryCode || 'VN';
+  config.defaultCountryCode = config.defaultCountryCode || "VN";
   config.selectedFields = config.selectedFields || {
     key: 1, expiredIn: 1, expiredTime: 1, phoneNumber: 0,
-  }
+  };
   config.projection = [];
   lodash.forOwn(config.selectedFields, function(flag, fieldName) {
     if (flag) {
       config.projection.push(fieldName);
     }
-  })
+  });
 
-  const serviceResolver = config.serviceResolver || 'app-restfetch/resolver';
+  const serviceResolver = config.serviceResolver || "app-restfetch/resolver";
   const serviceSelector = chores.newServiceSelector({ serviceResolver, sandboxRegistry });
 
   const errorBuilder = errorManager.register(packageName, {
@@ -68,6 +69,11 @@ function Handler(params = {}) {
           .then(attachServices)
           .then(loginAdminApp)
           .then(detachServices);
+      } else if (packet.appType === APPTYPE_CLIENT) {
+        return Promise.resolve(packet)
+          .then(attachServices)
+          .then(loginClientApp)
+          .then(detachServices);
       }
       return Promise.resolve(packet)
         .then(attachServices)
@@ -77,29 +83,29 @@ function Handler(params = {}) {
         .then(sendOTP)
         .then(registerEnd)
         .then(detachServices);
-    })
-  }
+    });
+  };
 
   this.verificationCode = function (packet, options) {
     return validateAppType(injectOptions(packet, options))
       .then(attachServices)
       .then(verifyOTP)
       .then(detachServices);
-  }
+  };
 
   this.refreshToken = function (packet, options) {
     return validateAppType(injectOptions(packet, options))
       .then(attachServices)
       .then(refreshToken)
       .then(detachServices);
-  }
+  };
 
   this.revokeToken = function (packet, options) {
     return validateAppType(injectOptions(packet, options))
       .then(attachServices)
       .then(revokeToken)
       .then(detachServices);
-  }
+  };
 
   this.updateUser = function (packet, options) {
     return validateAppType(injectOptions(packet, options))
@@ -107,29 +113,29 @@ function Handler(params = {}) {
       .then(updateUser)
       .then(filterUserInfo)
       .then(detachServices);
-  }
+  };
 
   this.getVerification = function (packet, options) {
     return validateAppType(injectOptions(packet, options))
       .then(attachServices)
       .then(getVerification)
       .then(detachServices);
-  }
+  };
 
   this.resetVerification = function (packet, options) {
     return validateAppType(injectOptions(packet, options))
       .then(attachServices)
       .then(resetVerification)
       .then(detachServices);
-  }
+  };
 };
 
 Handler.referenceHash = {
-  bcryptor: 'bcryptor',
-  oauthApi: 'oauthApi',
-  errorManager: 'app-errorlist/manager',
-  sandboxRegistry: 'devebot/sandboxRegistry',
-  schemaManager: 'app-datastore/schemaManager'
+  bcryptor: "bcryptor",
+  oauthApi: "oauthApi",
+  errorManager: "app-errorlist/manager",
+  sandboxRegistry: "devebot/sandboxRegistry",
+  schemaManager: "app-datastore/schemaManager"
 };
 
 module.exports = Handler;
@@ -137,7 +143,7 @@ module.exports = Handler;
 function getModelMethodPromise (schemaManager, modelName, methodName) {
   const model = schemaManager.getModel(modelName);
   if (!model) {
-    return Promise.reject(new Error(modelName + '_not_available'));
+    return Promise.reject(new Error(modelName + "_not_available"));
   }
   return Promise.resolve(Promise.promisify(model[methodName], { context: model }));
 }
@@ -145,7 +151,7 @@ function getModelMethodPromise (schemaManager, modelName, methodName) {
 function loginAdminApp (packet = {}) {
   const { bcryptor, oauthApi, schemaManager, errorBuilder, config, appType, language, data } = packet;
   return Promise.resolve().then(function() {
-    return getModelMethodPromise(schemaManager, 'UserModel', 'findOne');
+    return getModelMethodPromise(schemaManager, "UserModel", "findOne");
   })
   .then(function(method) {
     const conditions = {};
@@ -157,9 +163,9 @@ function loginAdminApp (packet = {}) {
   })
   .then(function(user) {
     // verify the password
-    const encPasswd = lodash.get(user, [appType, 'password'], null);
+    const encPasswd = lodash.get(user, [appType, "password"], null);
     if (encPasswd === null) {
-      return Promise.reject(errorBuilder.newError('PasswordNotFound', { payload: {
+      return Promise.reject(errorBuilder.newError("PasswordNotFound", { payload: {
         appType: appType,
         username: data.username
       }, language }));
@@ -169,7 +175,7 @@ function loginAdminApp (packet = {}) {
         lodash.assign(user[appType], { verified: true, refreshToken: genKey() });
         return user.save();
       } else {
-        return Promise.reject(errorBuilder.newError('PasswordIsMismatched', { payload: {
+        return Promise.reject(errorBuilder.newError("PasswordIsMismatched", { payload: {
           appType: appType,
           username: data.username
         }, language }));
@@ -182,7 +188,7 @@ function loginAdminApp (packet = {}) {
     }
     const now = moment();
     const expiredIn = config.otpExpiredIn;
-    const expiredTime = now.add(config.otpExpiredIn, 'seconds').toDate();
+    const expiredTime = now.add(config.otpExpiredIn, "seconds").toDate();
     const auth = {
       token_type: "Bearer",
       access_token: oauthApi.createAppAccessToken({
@@ -197,47 +203,132 @@ function loginAdminApp (packet = {}) {
       refresh_token: user[appType].refreshToken,
       expires_in: expiredIn,
       expired_time: expiredTime,
+    };
+    return lodash.assign(packet, { data: { auth, user } });
+  });
+}
+
+function loginClientApp (packet = {}) {
+const {
+  bcryptor,
+  oauthApi,
+  schemaManager,
+  errorBuilder,
+  config,
+  appType,
+  language,
+  data
+} = packet;
+return Promise.resolve()
+  .then(function() {
+    return getModelMethodPromise(schemaManager, "UserModel", "findOne");
+  })
+  .then(function(method) {
+    const conditions = {};
+    conditions[[appType, "tokenKey"].join(".")] = data.tokenKey;
+    return method(conditions, null, {});
+  })
+  .then(function(user) {
+    return _checkUser(packet, user);
+  })
+  .then(function(user) {
+    // verify the tokenSecret
+    const encTokenSecret = lodash.get(user, [appType, "tokenSecret"], null);
+    if (encTokenSecret === null) {
+      return Promise.reject(
+        errorBuilder.newError("TokenSecretNotFound", {
+          payload: {
+            appType: appType,
+            tokenKey: data.tokenKey
+          },
+          language
+        })
+      );
     }
+    return bcryptor.compare(data.tokenSecret, encTokenSecret).then(function(matched) {
+      if (matched) {
+        lodash.assign(user[appType], {
+          verified: true,
+          refreshToken: genKey()
+        });
+        return user.save();
+      } else {
+        return Promise.reject(
+          errorBuilder.newError("TokenSecretIsMismatched", {
+            payload: {
+              appType: appType,
+              tokenKey: data.tokenKey
+            },
+            language
+          })
+        );
+      }
+    });
+  })
+  .then(function(user) {
+    if (user && lodash.isFunction(user.toJSON)) {
+      user = user.toJSON();
+    }
+    const now = moment();
+    const expiredIn = config.otpExpiredIn;
+    const expiredTime = now.add(config.otpExpiredIn, "seconds").toDate();
+    const auth = {
+      token_type: "Bearer",
+      access_token: oauthApi.createAppAccessToken({
+        user,
+        constraints: {
+          appType,
+          expiredIn,
+          expiredTime,
+          email: user[appType].email,
+          tokenKey: user[appType].tokenKey,
+          permissions: user[appType].permissions || []
+        }
+      }),
+      refresh_token: user[appType].refreshToken,
+      expires_in: expiredIn,
+      expired_time: expiredTime
+    };
     return lodash.assign(packet, { data: { auth, user } });
   });
 }
 
 function upsertDevice (packet = {}) {
   const { schemaManager, data } = packet;
-  return getModelMethodPromise(schemaManager, 'DeviceModel', 'findOneAndUpdate')
+  return getModelMethodPromise(schemaManager, "DeviceModel", "findOneAndUpdate")
   .then(function(method) {
     return method(
       {
-        'imei': data.device.imei,
-        'platform': data.device.platform
+        "imei": data.device.imei,
+        "platform": data.device.platform
       },
       data,
       {
         new: true,
         upsert: true
       }
-    )
+    );
   })
   .then(function(device) {
     return lodash.assign(packet, { device });
   });
 }
 
-function _findUserByHolderId({ schemaManager, config, appType, data, errorBuilder, language }) {
+function _findUserByHolderId ({ schemaManager, config, appType, data, errorBuilder, language }) {
   return Promise.resolve().then(function() {
-    return getModelMethodPromise(schemaManager, 'UserModel', 'findOne');
+    return getModelMethodPromise(schemaManager, "UserModel", "findOne");
   })
   .then(function(method) {
     const conditions = {};
     conditions[[appType, "holderId"].join(".")] = data.holderId;
 
     return method(conditions, null, {});
-  })
+  });
 }
 
-function _findUserByPhoneNumber({ schemaManager, config, appType, data, errorBuilder, language }) {
+function _findUserByPhoneNumber ({ schemaManager, config, appType, data, errorBuilder, language }) {
   return Promise.resolve().then(function() {
-    return getModelMethodPromise(schemaManager, 'UserModel', 'findOne');
+    return getModelMethodPromise(schemaManager, "UserModel", "findOne");
   })
   .then(function(method) {
     const err = sanitizePhone(data, config, errorBuilder, language);
@@ -249,7 +340,7 @@ function _findUserByPhoneNumber({ schemaManager, config, appType, data, errorBui
     conditions[[appType, "phoneNumber"].join(".")] = data.phoneNumber;
 
     return method(conditions, null, {});
-  })
+  });
 }
 
 function validateUser (packet = {}) {
@@ -261,7 +352,7 @@ function validateUser (packet = {}) {
         const user = {};
         user[appType] = { device };
         assignUserData(appType, user, data);
-        const userCreate = getModelMethodPromise(schemaManager, 'UserModel', 'create');
+        const userCreate = getModelMethodPromise(schemaManager, "UserModel", "create");
         return userCreate.then(function(method) {
           const opts = {};
           return method([user], opts).spread(function(user) {
@@ -273,7 +364,7 @@ function validateUser (packet = {}) {
     return _checkUser(packet, user).then(function(user) {
       lodash.assign(user[appType], { device: device });
       return user.save();
-    })
+    });
   })
   .then(function(user) {
     return lodash.assign(packet, { user });
@@ -284,7 +375,7 @@ function generateOTP (packet = {}) {
   const { T, L } = packet;
   const { schemaManager, errorBuilder, config, appType, language, user, device } = packet;
   return Promise.resolve().then(function() {
-    return getModelMethodPromise(schemaManager, 'VerificationModel', 'findOne');
+    return getModelMethodPromise(schemaManager, "VerificationModel", "findOne");
   })
   .then(function(method) {
     const conditions = {
@@ -293,12 +384,12 @@ function generateOTP (packet = {}) {
     };
     const opts = {
       sort: { expiredTime: -1 }
-    }
+    };
     return method(conditions, null, opts);
   })
   .then(function(verification) {
     const now = moment();
-    const nowPlus = now.add(config.otpTypingTime, 'seconds');
+    const nowPlus = now.add(config.otpTypingTime, "seconds");
     if (verification) {
       if (verification.expiredTime) {
         const oldExpiredTime = moment(verification.expiredTime);
@@ -315,13 +406,13 @@ function generateOTP (packet = {}) {
     if (verification) {
       return verification;
     } else {
-      const verificationCreate = getModelMethodPromise(schemaManager, 'VerificationModel', 'create');
+      const verificationCreate = getModelMethodPromise(schemaManager, "VerificationModel", "create");
       return verificationCreate.then(function(method) {
         const obj = {
           key: genKey(),
           otp: otp.generate(config.otpSize, otpDefaultOpts),
           expiredIn: config.otpExpiredIn,
-          expiredTime: now.add(config.otpExpiredIn, 'seconds').toDate(),
+          expiredTime: now.add(config.otpExpiredIn, "seconds").toDate(),
           user: user._id,
           device: device._id,
           appType: appType,
@@ -342,7 +433,7 @@ function generateOTP (packet = {}) {
   })
   .then(function(verification) {
     if (!verification) {
-      return Promise.reject(errorBuilder.newError('VerificationCouldNotBeCreated', {
+      return Promise.reject(errorBuilder.newError("VerificationCouldNotBeCreated", {
         payload: {
           appType: appType,
         },
@@ -350,7 +441,7 @@ function generateOTP (packet = {}) {
       }));
     }
     return lodash.assign(packet, { verification });
-  })
+  });
 }
 
 function sendOTP (packet = {}) {
@@ -359,22 +450,22 @@ function sendOTP (packet = {}) {
   if (skipped === true) {
     return Promise.resolve(packet);
   }
-  const messenderService = [packageName, 'messender'].join(chores.getSeparator());
-  const ref = serviceSelector.lookupMethod(messenderService, 'sendSMS');
+  const messenderService = [packageName, "messender"].join(chores.getSeparator());
+  const ref = serviceSelector.lookupMethod(messenderService, "sendSMS");
   if (ref.service && ref.method) {
-    L.has('debug') && L.log('debug', T.add({
+    L.has("debug") && L.log("debug", T.add({
       phoneNumber: verification.phoneNumber
     }).toMessage({
-      tmpl: 'An OTP has been created for phone: ${phoneNumber}'
-    }))
+      tmpl: "An OTP has been created for phone: ${phoneNumber}"
+    }));
     const msgInfo = {
       text: format(config.smsTemplate, { otp: verification.otp }),
       phoneNumber: verification.phoneNumber,
-    }
+    };
     Promise.resolve(ref.method(msgInfo, options)).then(function(smsResult) {
-      L.has('debug') && L.log('debug', T.add({ smsResult }).toMessage({
-        tmpl: 'SendSMS result: ${smsResult}'
-      }))
+      L.has("debug") && L.log("debug", T.add({ smsResult }).toMessage({
+        tmpl: "SendSMS result: ${smsResult}"
+      }));
     });
   }
   return Promise.resolve(packet);
@@ -384,52 +475,52 @@ function registerEnd (packet = {}) {
   const { config, verification } = packet;
   return {
     data: lodash.pick(verification, config.projection)
-  }
+  };
 }
 
 function verifyOTP (packet = {}) {
   const { schemaManager, errorBuilder, oauthApi, appType, language, data } = packet;
   if (appType !== APPTYPE_AGENT) {
-    return Promise.reject(errorBuilder.newError('MethodUnsupportedForAppType', {
+    return Promise.reject(errorBuilder.newError("MethodUnsupportedForAppType", {
       payload: {
         appType: appType,
-        method: 'verifyOTP'
+        method: "verifyOTP"
       },
       language
     }));
   }
   return Promise.resolve().then(function() {
-    return getModelMethodPromise(schemaManager, 'VerificationModel', 'findOne');
+    return getModelMethodPromise(schemaManager, "VerificationModel", "findOne");
   })
   .then(function(method) {
     const conditions = {
       key: data.key
     };
-    const opts = {}
+    const opts = {};
     return method(conditions, null, opts);
   })
   .then(function(verification) {
     if (!verification) {
-      return Promise.reject(errorBuilder.newError('VerificationKeyNotFound', { payload: {
+      return Promise.reject(errorBuilder.newError("VerificationKeyNotFound", { payload: {
         key: data.key,
       }, language }));
     }
     if (!verification.expiredTime) {
-      return Promise.reject(errorBuilder.newError('VerificationExpiredTimeIsEmpty', { payload: {
+      return Promise.reject(errorBuilder.newError("VerificationExpiredTimeIsEmpty", { payload: {
         key: data.key,
       }, language }));
     }
     const now = moment();
     const expiredTime = moment(verification.expiredTime);
     if (now.isAfter(expiredTime)) {
-      return Promise.reject(errorBuilder.newError('OTPHasExpired', { payload: {
+      return Promise.reject(errorBuilder.newError("OTPHasExpired", { payload: {
         key: data.key,
         expiredTime: expiredTime,
       }, language }));
     }
     // compare OTP
     if (data.otp != verification.otp) {
-      return Promise.reject(errorBuilder.newError('OTPIncorrectCode', { payload: {
+      return Promise.reject(errorBuilder.newError("OTPIncorrectCode", { payload: {
         key: data.key,
       }, language }));
     }
@@ -439,22 +530,22 @@ function verifyOTP (packet = {}) {
   })
   .then(function(verification) {
     if (!verification) {
-      return Promise.reject(errorBuilder.newError('VerificationCouldNotBeUpdated', { payload: {
+      return Promise.reject(errorBuilder.newError("VerificationCouldNotBeUpdated", { payload: {
         key: data.key,
       }, language }));
     }
-    return getModelMethodPromise(schemaManager, 'UserModel', 'findById')
+    return getModelMethodPromise(schemaManager, "UserModel", "findById")
     .then(function(method) {
       return method(verification.user, null, null);
     })
     .then(function(user) {
       if (!user) {
-        return Promise.reject(errorBuilder.newError('VerificationUserNotFound', { payload: {
+        return Promise.reject(errorBuilder.newError("VerificationUserNotFound", { payload: {
           key: data.key,
         }, language }));
       }
       if (!user[verification.appType]) {
-        return Promise.reject(errorBuilder.newError('VerificationUserAppTypeNotFound', { payload: {
+        return Promise.reject(errorBuilder.newError("VerificationUserAppTypeNotFound", { payload: {
           key: data.key,
           appType: verification.appType,
         }, language }));
@@ -462,7 +553,7 @@ function verifyOTP (packet = {}) {
       user[verification.appType].verified = true;
       user[verification.appType].refreshToken = genKey();
       return [ user.save(), verification ];
-    })
+    });
   })
   .spread(function(user, verification) {
     if (user && lodash.isFunction(user.toJSON)) {
@@ -479,8 +570,8 @@ function verifyOTP (packet = {}) {
       refresh_token: user[verification.appType].refreshToken,
       expires_in: verification.expiredIn,
       expired_time: verification.expiredTime,
-    }
-    return lodash.assign(packet, { data: { auth, user } })
+    };
+    return lodash.assign(packet, { data: { auth, user } });
   });
 }
 
@@ -490,7 +581,7 @@ function refreshToken (packet = {}) {
   // search user[appType].refreshToken
   return Promise.resolve()
   .then(function() {
-    return getModelMethodPromise(schemaManager, 'UserModel', 'findOne');
+    return getModelMethodPromise(schemaManager, "UserModel", "findOne");
   })
   .then(function(method) {
     const conditions = {};
@@ -500,14 +591,14 @@ function refreshToken (packet = {}) {
   })
   .then(function(user) {
     if (!user) {
-      return Promise.reject(errorBuilder.newError('RefreshTokenNotFound', { language }));
+      return Promise.reject(errorBuilder.newError("RefreshTokenNotFound", { language }));
     }
     if (user[appType].verified == false) {
-      return Promise.reject(errorBuilder.newError('UserIsNotVerified', { language }));
+      return Promise.reject(errorBuilder.newError("UserIsNotVerified", { language }));
     }
     const now = moment();
     const expiredIn = config.tokenExpiredIn;
-    const expiredTime = now.add(config.tokenExpiredIn, 'seconds');
+    const expiredTime = now.add(config.tokenExpiredIn, "seconds");
     let constraints = { appType, expiredIn, expiredTime };
     if (appType === APPTYPE_ADMIN) {
       constraints = lodash.assign(constraints, {
@@ -515,8 +606,13 @@ function refreshToken (packet = {}) {
         username: user[appType].username,
         permissions: user[appType].permissions || [],
       });
-    }
-    if (appType === APPTYPE_AGENT) {
+    } else if (appType === APPTYPE_CLIENT) {
+      constraints = lodash.assign(constraints, {
+        email: user[appType].email,
+        tokenKey: user[appType].username,
+        permissions: user[appType].permissions || []
+      });
+    } else if (appType === APPTYPE_AGENT) {
       constraints = lodash.assign(constraints, {
         phoneNumber: user[appType].phoneNumber,
       });
@@ -528,7 +624,7 @@ function refreshToken (packet = {}) {
       expires_in: expiredIn,
       expired_time: expiredTime,
       revisions: revisions,
-    }
+    };
     return lodash.assign(packet, { data: { auth } });
   });
 }
@@ -538,17 +634,20 @@ function filterUserInfo (packet = {}) {
 
   let data = lodash.assign({
     userId: user._id,
-  }, lodash.pick(user, ['firstName', 'lastName', 'email', 'activated', 'deleted', 'tags']));
+  }, lodash.pick(user, ["firstName", "lastName", "email", "activated", "deleted", "tags"]));
 
   if (appType === APPTYPE_ADMIN) {
     data = lodash.assign(data, lodash.pick(lodash.get(user, appType), [
-      'holderId', 'username', 'permissions'
+      "holderId", "username", "permissions"
     ]));
-  }
-
-  if (appType === APPTYPE_AGENT) {
+  } else if (appType === APPTYPE_CLIENT) {
+    data = lodash.assign(
+      data,
+      lodash.pick(lodash.get(user, appType), ["holderId", "tokenKey", "email", "permissions"])
+    );
+  } else if (appType === APPTYPE_AGENT) {
     data = lodash.assign(data, lodash.pick(lodash.get(user, appType), [
-      'holderId', 'phoneNumber'
+      "holderId", "phoneNumber"
     ]));
   }
 
@@ -558,26 +657,26 @@ function filterUserInfo (packet = {}) {
 function updateUser (packet = {}) {
   const { bcryptor, schemaManager, errorBuilder, config, appType, language, data = {} } = packet;
 
-  let p = getModelMethodPromise(schemaManager, 'UserModel', 'findOne');
+  let p = getModelMethodPromise(schemaManager, "UserModel", "findOne");
 
   if (appType === APPTYPE_ADMIN) {
-    if (!data['holderId'] && !data['username']) {
-      return Promise.reject(errorBuilder.newError('AdminAppHolderIdOrUsernameExpected',
-      { payload: lodash.pick(data, ['holderId', 'username']), language }));
+    if (!data["holderId"] && !data["username"]) {
+      return Promise.reject(errorBuilder.newError("AdminAppHolderIdOrUsernameExpected",
+      { payload: lodash.pick(data, ["holderId", "username"]), language }));
     }
     p = p.then(function(method) {
       // query an user by the holderId
       let findByHolderId = Promise.resolve();
-      if (data['holderId']) {
+      if (data["holderId"]) {
         const conditions = {};
-        conditions[[appType, 'holderId'].join(".")] = data['holderId'];
+        conditions[[appType, "holderId"].join(".")] = data["holderId"];
         findByHolderId = method(conditions, null, {});
       }
       // query an user by the username
       let findByUsername = Promise.resolve();
-      if (data['username']) {
+      if (data["username"]) {
         const conditions = {};
-        conditions[[appType, 'username'].join(".")] = data['username'];
+        conditions[[appType, "username"].join(".")] = data["username"];
         findByUsername = method(conditions, null, {});
       }
       // make the query
@@ -586,9 +685,9 @@ function updateUser (packet = {}) {
         if (byHolderId) {
           if (byUsername) {
             if (byHolderId._id.toString() !== byUsername._id.toString()) {
-              return Promise.reject(errorBuilder.newError('UsernameHasOccupied', { payload: {
-                holderId: data['holderId'],
-                username: data['username']
+              return Promise.reject(errorBuilder.newError("UsernameHasOccupied", { payload: {
+                holderId: data["holderId"],
+                username: data["username"]
               }, language }));
             }
           }
@@ -601,7 +700,7 @@ function updateUser (packet = {}) {
           } else {
             const user = {};
             assignUserData(appType, user, data, bcryptor);
-            const userCreate = getModelMethodPromise(schemaManager, 'UserModel', 'create');
+            const userCreate = getModelMethodPromise(schemaManager, "UserModel", "create");
             return userCreate.then(function(method) {
               const opts = {};
               return method([user], opts).spread(function(user) {
@@ -610,14 +709,12 @@ function updateUser (packet = {}) {
             });
           }
         }
-      })
+      });
     });
-  }
-
-  if (appType === APPTYPE_AGENT) {
-    if (!data['holderId'] && !data['phoneNumber']) {
-      return Promise.reject(errorBuilder.newError('AgentAppHolderIdOrPhoneNumberExpected',
-      { payload: lodash.pick(data, ['holderId', 'phoneNumber']), language }));
+  } else if (appType === APPTYPE_AGENT) {
+    if (!data["holderId"] && !data["phoneNumber"]) {
+      return Promise.reject(errorBuilder.newError("AgentAppHolderIdOrPhoneNumberExpected",
+      { payload: lodash.pick(data, ["holderId", "phoneNumber"]), language }));
     }
     p = p.then(function(method) {
       // sanitize the phone number
@@ -627,16 +724,16 @@ function updateUser (packet = {}) {
       }
       // query an user by the holderId
       let findByHolderId = Promise.resolve();
-      if (data['holderId']) {
+      if (data["holderId"]) {
         const conditions = {};
-        conditions[[appType, 'holderId'].join(".")] = data['holderId'];
+        conditions[[appType, "holderId"].join(".")] = data["holderId"];
         findByHolderId = method(conditions, null, {});
       }
       // query an user by the phoneNumber
       let findByPhoneNumber = Promise.resolve();
-      if (data['phoneNumber']) {
+      if (data["phoneNumber"]) {
         const conditions = {};
-        conditions[[appType, 'phoneNumber'].join(".")] = data['phoneNumber'];
+        conditions[[appType, "phoneNumber"].join(".")] = data["phoneNumber"];
         findByPhoneNumber = method(conditions, null, {});
       }
       // make the query
@@ -645,9 +742,9 @@ function updateUser (packet = {}) {
         if (userById) {
           if (user) {
             if (userById._id.toString() !== user._id.toString()) {
-              return Promise.reject(errorBuilder.newError('PhoneNumberHasOccupied', { payload: {
-                holderId: data['holderId'],
-                phoneNumber: data['phoneNumber']
+              return Promise.reject(errorBuilder.newError("PhoneNumberHasOccupied", { payload: {
+                holderId: data["holderId"],
+                phoneNumber: data["phoneNumber"]
               }, language }));
             }
           }
@@ -660,7 +757,7 @@ function updateUser (packet = {}) {
           } else {
             const user = {};
             assignUserData(appType, user, data, bcryptor);
-            const userCreate = getModelMethodPromise(schemaManager, 'UserModel', 'create');
+            const userCreate = getModelMethodPromise(schemaManager, "UserModel", "create");
             return userCreate.then(function(method) {
               const opts = {};
               return method([user], opts).spread(function(user) {
@@ -669,7 +766,67 @@ function updateUser (packet = {}) {
             });
           }
         }
-      })
+      });
+    });
+  } else if (appType === APPTYPE_CLIENT) {
+    if (!data["holderId"] && !data["tokenKey"]) {
+      return Promise.reject(
+        errorBuilder.newError("ClientAppHolderIdOrTokenKeyExpected", {
+          payload: lodash.pick(data, ["holderId", "tokenKey"]),
+          language
+        })
+      );
+    }
+    p = p.then(function(method) {
+      // query an client by the holderId
+      let findByHolderId = Promise.resolve();
+      if (data["holderId"]) {
+        const conditions = {};
+        conditions[[appType, "holderId"].join(".")] = data["holderId"];
+        findByHolderId = method(conditions, null, {});
+      }
+      // query an client by the tokenKey
+      let findByTokenKey = Promise.resolve();
+      if (data["tokenKey"]) {
+        const conditions = {};
+        conditions[[appType, "tokenKey"].join(".")] = data["tokenKey"];
+        findByTokenKey = method(conditions, null, {});
+      }
+      // make the query
+      return Promise.all([findByHolderId, findByTokenKey])
+      .spread(function(byHolderId, byTokenKey) {
+        if (byHolderId) {
+          if (byTokenKey) {
+            if (byHolderId._id.toString() !== byTokenKey._id.toString()) {
+              return Promise.reject(errorBuilder.newError("TokenKeyHasOccupied", { payload: {
+                holderId: data["holderId"],
+                tokenKey: data["tokenKey"]
+              }, language }));
+            }
+          }
+          assignUserData(appType, byHolderId, data, bcryptor);
+          return byHolderId.save();
+        } else {
+          if (byTokenKey) {
+            assignUserData(appType, byTokenKey, data, bcryptor);
+            return byTokenKey.save();
+          } else {
+            const user = {};
+            assignUserData(appType, user, data, bcryptor);
+            const userCreate = getModelMethodPromise(
+              schemaManager,
+              "UserModel",
+              "create"
+            );
+            return userCreate.then(function(method) {
+              const opts = {};
+              return method([user], opts).spread(function(user) {
+                return user;
+              });
+            });
+          }
+        }
+      });
     });
   }
 
@@ -700,11 +857,11 @@ function getVerification (packet = {}) {
     return _checkUser(packet, user);
   })
   .then(function(user) {
-    return generateOTP(lodash.assign(packet, { user, device: lodash.pick(user, [appType, 'device']) }));
+    return generateOTP(lodash.assign(packet, { user, device: lodash.pick(user, [appType, "device"]) }));
   })
   .then(function({ verification }) {
     return lodash.assign(packet, {
-      data: lodash.pick(verification, ['key', 'otp', 'expiredIn', 'expiredTime', 'verified'])
+      data: lodash.pick(verification, ["key", "otp", "expiredIn", "expiredTime", "verified"])
     });
   });
 
@@ -714,11 +871,11 @@ function getVerification (packet = {}) {
 function resetVerification (packet = {}) {
   const { schemaManager, errorBuilder, config, appType, language, data } = packet;
 
-  let p = getModelMethodPromise(schemaManager, 'VerificationModel', 'findOne');
+  let p = getModelMethodPromise(schemaManager, "VerificationModel", "findOne");
 
   if (appType === APPTYPE_AGENT) {
     if (!lodash.isString(data.phoneNumber) || lodash.isEmpty(data.phoneNumber)) {
-      return Promise.reject(errorBuilder.newError('PhoneNumberMustBeNotNull', { language }));
+      return Promise.reject(errorBuilder.newError("PhoneNumberMustBeNotNull", { language }));
     }
     p = p.then(function(method) {
       const conditions = {
@@ -727,14 +884,14 @@ function resetVerification (packet = {}) {
       };
       const opts = {
         sort: { expiredTime: -1 }
-      }
+      };
       return method(conditions, null, opts);
     });
   }
 
   p = p.then(function(verification) {
     if (verification) {
-      const now = moment().subtract(config.otpTypingTime, 'seconds');
+      const now = moment().subtract(config.otpTypingTime, "seconds");
       verification.expiredTime = now;
       return verification.save();
     }
@@ -750,7 +907,7 @@ function resetVerification (packet = {}) {
   });
 }
 
-const MIRROR_USER_FIELDS = ['firstName', 'lastName', 'email', 'activated', 'deleted'];
+const MIRROR_USER_FIELDS = ["firstName", "lastName", "email", "activated", "deleted"];
 
 function assignUserData (appType, user = {}, data = {}, bcryptor) {
   lodash.forEach(MIRROR_USER_FIELDS, function(field) {
@@ -774,15 +931,22 @@ function assignUserData (appType, user = {}, data = {}, bcryptor) {
       user[appType].password = bcryptor.hashSync(data.password);
       user[appType].refreshToken = undefined;
     }
-  }
-
-  if (appType === APPTYPE_AGENT) {
+  } else if (appType === APPTYPE_AGENT) {
     if (lodash.isString(data.phoneNumber) && data.phoneNumber != user[appType].phoneNumber) {
       // change the phoneNumber -> verified <- false, delete refreshToken
       user[appType].phone = data.phone;
       user[appType].phoneNumber = data.phoneNumber;
       user[appType].refreshToken = undefined;
       user[appType].verified = false;
+    }
+  } else if (appType == APPTYPE_CLIENT) {
+    if (lodash.isString(data.tokenKey) && data.tokenKey != user[appType].tokenKey) {
+      user[appType].tokenKey = data.tokenKey;
+      user[appType].refreshToken = undefined;
+    }
+    if (lodash.isString(data.tokenSecret) && !lodash.isEmpty(data.tokenSecret)) {
+      user[appType].tokenSecret = bcryptor.hashSync(data.tokenSecret);
+      user[appType].refreshToken = undefined;
     }
   }
 
@@ -794,15 +958,20 @@ function assignUserData (appType, user = {}, data = {}, bcryptor) {
 
 function revokeToken (packet = {}) {
   const { schemaManager, appType, data } = packet;
-  let p = getModelMethodPromise(schemaManager, 'UserModel', 'findOne');
+  let p = getModelMethodPromise(schemaManager, "UserModel", "findOne");
   if (appType === APPTYPE_ADMIN) {
     p = p.then(function(method) {
       const conditions = {};
       conditions[[appType, "username"].join(".")] = data.username;
       return method(conditions, null, {});
     });
-  }
-  if (appType === APPTYPE_AGENT) {
+  } else if (appType === APPTYPE_CLIENT) {
+    p = p.then(function(method) {
+      const conditions = {};
+      conditions[[appType, "tokenKey"].join(".")] = data.tokenKey;
+      return method(conditions, null, {});
+    });
+  } else if (appType === APPTYPE_AGENT) {
     p = p.then(function(method) {
       const conditions = {};
       conditions[[appType, "phoneNumber"].join(".")] = data.phoneNumber;
@@ -823,11 +992,12 @@ function injectOptions (packet = {}, options) {
   return Object.assign(packet, { options });
 }
 
-function sanitizeAppType(appType) {
-  if (['adminApp', 'admin', 'cc', 'operation'].indexOf(appType) >= 0) {
+function sanitizeAppType (appType) {
+  if (["adminApp", "admin", "cc", "operation"].indexOf(appType) >= 0) {
     return APPTYPE_ADMIN;
-  }
-  if (['agentApp', 'agent', 'agent-app', 'sales'].indexOf(appType) >= 0) {
+  } else if (["clientApp", "partyApp", "partnerApp", "client", "party", "partner"].indexOf(appType) >= 0) {
+    return APPTYPE_CLIENT;
+  } else if (["agentApp", "agent", "agent-app", "sales"].indexOf(appType) >= 0) {
     return APPTYPE_AGENT;
   }
   return null;
@@ -836,16 +1006,16 @@ function sanitizeAppType(appType) {
 function validateAppType (packet) {
   const appType = sanitizeAppType(packet.appType);
   if (appType == null) {
-    return Promise.reject(new Error(util.format('Unsupported appType [%s]', packet.appType)));
+    return Promise.reject(new Error(util.format("Unsupported appType [%s]", packet.appType)));
   }
   packet.appType = appType;
   return Promise.resolve(packet);
 }
 
 function sanitizePhone (data = {}, config = {}, errorBuilder, language) {
-  config.defaultCountryCode = config.defaultCountryCode || 'US';
+  config.defaultCountryCode = config.defaultCountryCode || "US";
   if (lodash.isEmpty(data.phoneNumber) && lodash.isEmpty(data.phone)) {
-    return errorBuilder.newError('PhoneNumberMustBeNotNull', { language });
+    return errorBuilder.newError("PhoneNumberMustBeNotNull", { language });
   }
   // sync between data.phone and data.phoneNumber
   if (data.phone) {
@@ -853,7 +1023,7 @@ function sanitizePhone (data = {}, config = {}, errorBuilder, language) {
     let derivativeNumber = data.phone.countryCode + data.phone.number;
     if (data.phoneNumber) {
       if (data.phoneNumber !== derivativeNumber) {
-        return errorBuilder.newError('PhoneNumberMismatched', { payload: {
+        return errorBuilder.newError("PhoneNumberMismatched", { payload: {
           phoneNumber: data.phoneNumber, phone: data.phone
         }, language });
       }
@@ -865,24 +1035,24 @@ function sanitizePhone (data = {}, config = {}, errorBuilder, language) {
   }
   // validate phone & phoneNumber
   if (!isValidPhoneNumber(data.phoneNumber, config.defaultCountryCode)) {
-    return errorBuilder.newError('PhoneNumberIsInvalid', { payload: {
+    return errorBuilder.newError("PhoneNumberIsInvalid", { payload: {
       phoneNumber: data.phoneNumber
     }, language });
   }
   return null;
 }
 
-function parsePhoneNumber(phoneString, defaultCountryCode) {
+function parsePhoneNumber (phoneString, defaultCountryCode) {
   const number = phoneUtil.parseAndKeepRawInput(phoneString, defaultCountryCode);
   return {
     country: phoneUtil.getRegionCodeForNumber(number),
-    countryCode: '+' + number.getCountryCode(),
+    countryCode: "+" + number.getCountryCode(),
     number: number.getNationalNumber(),
     rawInput: number.getRawInput(),
-  }
+  };
 }
 
-function isValidPhoneNumber(phoneString, defaultCountryCode) {
+function isValidPhoneNumber (phoneString, defaultCountryCode) {
   return phoneUtil.isValidNumber(phoneUtil.parse(phoneString, defaultCountryCode));
 }
 
@@ -898,7 +1068,7 @@ function matchFixedOTP (packet = {}, phoneNumber) {
       }
     }
   } else {
-    return getModelMethodPromise(schemaManager, 'FixedotpModel', 'findOne')
+    return getModelMethodPromise(schemaManager, "FixedotpModel", "findOne")
     .then(function(method) {
       const conditions = {
         phoneNumber: phoneNumber
@@ -917,25 +1087,25 @@ function matchFixedOTP (packet = {}, phoneNumber) {
   return Promise.resolve(null);
 }
 
-function _extractUserQuery(appType, data) {
-  return lodash.assign({ appType }, lodash.pick(data, ['holderId', 'phoneNumber', 'username']));
+function _extractUserQuery (appType, data) {
+  return lodash.assign({ appType }, lodash.pick(data, ["holderId", "phoneNumber", "username"]));
 }
 
 function _checkUser ({ appType, errorBuilder, language, data }, user) {
   if (!user) {
-    return Promise.reject(errorBuilder.newError('UserNotFound', {
+    return Promise.reject(errorBuilder.newError("UserNotFound", {
       payload: _extractUserQuery(appType, data),
       language
     }));
   }
   if (user.activated == false) {
-    return Promise.reject(errorBuilder.newError('UserIsLocked', {
+    return Promise.reject(errorBuilder.newError("UserIsLocked", {
       payload: _extractUserQuery(appType, data),
       language
     }));
   }
   if (user.deleted == true) {
-    return Promise.reject(errorBuilder.newError('UserIsDeleted', {
+    return Promise.reject(errorBuilder.newError("UserIsDeleted", {
       payload: _extractUserQuery(appType, data),
       language
     }));
