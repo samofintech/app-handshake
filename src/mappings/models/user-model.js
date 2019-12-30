@@ -1,6 +1,6 @@
-'use strict';
+"use strict";
 
-const mongoose = require('app-datastore').require('mongoose');
+const mongoose = require("app-datastore").require("mongoose");
 const Schema = mongoose.Schema;
 
 /**
@@ -8,7 +8,7 @@ const Schema = mongoose.Schema;
  * User Model
  */
 module.exports = {
-  name: 'UserModel',
+  name: "UserModel",
   descriptor: {
     firstName: { type: String },
     lastName: { type: String },
@@ -19,7 +19,7 @@ module.exports = {
       email: { type: String },
       username: { type: String },
       password: { type: String },
-      permissions: [ String ],
+      permissions: [String],
       holderId: { type: Schema.Types.ObjectId },
       verified: { type: Boolean, default: false },
       refreshToken: { type: String }
@@ -30,8 +30,16 @@ module.exports = {
       phone: {
         country: { type: String },
         countryCode: { type: String },
-        number: { type: String },
+        number: { type: String }
       },
+      holderId: { type: Schema.Types.ObjectId },
+      verified: { type: Boolean, default: false },
+      refreshToken: { type: String }
+    },
+    clientApp: {
+      email: { type: String },
+      tokenKey: { type: String },
+      tokenSecret: { type: String },
       holderId: { type: Schema.Types.ObjectId },
       verified: { type: Boolean, default: false },
       refreshToken: { type: String }
@@ -47,6 +55,6 @@ module.exports = {
     updatedAt: { type: Date, default: Date.now }
   },
   options: {
-    collection: 'users'
+    collection: "users"
   }
 };
