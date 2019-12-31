@@ -289,7 +289,7 @@ function loginClientApp (packet = {}) {
         expires_in: expiredIn,
         expired_time: expiredTime
       };
-      return lodash.assign(packet, { data: { auth, user } });
+      return lodash.assign(packet, { data: { auth } });
     });
 }
 
