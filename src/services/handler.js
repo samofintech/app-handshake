@@ -17,6 +17,7 @@ const mongoose = require("app-datastore").require("mongoose");
 
 const APPTYPE_ADMIN = "adminApp";
 const APPTYPE_AGENT = "agentApp";
+const APPTYPE_INSURANCE_CUSTOMER = "insuranceCustomerApp";
 const APPTYPE_CLIENT = "clientApp";
 
 function Handler (params = {}) {
@@ -74,15 +75,16 @@ function Handler (params = {}) {
           .then(attachServices)
           .then(loginClientApp)
           .then(detachServices);
+      } else if (packet.appType === APPTYPE_AGENT || packageName.appType === APPTYPE_INSURANCE_CUSTOMER) {
+        return Promise.resolve(packet)
+          .then(attachServices)
+          .then(upsertDevice)
+          .then(validateUser)
+          .then(generateOTP)
+          .then(sendOTP)
+          .then(registerEnd)
+          .then(detachServices);
       }
-      return Promise.resolve(packet)
-        .then(attachServices)
-        .then(upsertDevice)
-        .then(validateUser)
-        .then(generateOTP)
-        .then(sendOTP)
-        .then(registerEnd)
-        .then(detachServices);
     });
   };
 
@@ -481,7 +483,7 @@ function registerEnd (packet = {}) {
 
 function verifyOTP (packet = {}) {
   const { schemaManager, errorBuilder, oauthApi, appType, language, data } = packet;
-  if (appType !== APPTYPE_AGENT) {
+  if (appType !== APPTYPE_AGENT || appType != APPTYPE_INSURANCE_CUSTOMER) {
     return Promise.reject(errorBuilder.newError("MethodUnsupportedForAppType", {
       payload: {
         appType: appType,
@@ -617,6 +619,10 @@ function refreshToken (packet = {}) {
       constraints = lodash.assign(constraints, {
         phoneNumber: user[appType].phoneNumber,
       });
+    } else if (appType === APPTYPE_INSURANCE_CUSTOMER) {
+      constraints = lodash.assign(constraints, {
+        phoneNumber: user[appType].phoneNumber,
+      });
     }
     const auth = {
       token_type: "Bearer",
@@ -647,6 +653,10 @@ function filterUserInfo (packet = {}) {
       lodash.pick(lodash.get(user, appType), ["holderId", "tokenKey", "email", "permissions"])
     );
   } else if (appType === APPTYPE_AGENT) {
+    data = lodash.assign(data, lodash.pick(lodash.get(user, appType), [
+      "holderId", "phoneNumber"
+    ]));
+  } else if (appType === APPTYPE_INSURANCE_CUSTOMER) {
     data = lodash.assign(data, lodash.pick(lodash.get(user, appType), [
       "holderId", "phoneNumber"
     ]));
@@ -712,7 +722,7 @@ function updateUser (packet = {}) {
         }
       });
     });
-  } else if (appType === APPTYPE_AGENT) {
+  } else if (appType === APPTYPE_AGENT || appType === APPTYPE_INSURANCE_CUSTOMER) {
     if (!data["holderId"] && !data["phoneNumber"]) {
       return Promise.reject(errorBuilder.newError("AgentAppHolderIdOrPhoneNumberExpected",
       { payload: lodash.pick(data, ["holderId", "phoneNumber"]), language }));
@@ -845,11 +855,10 @@ function getVerification (packet = {}) {
   const { appType, data } = packet;
 
   let p = Promise.resolve();
-  if (appType === APPTYPE_AGENT) {
+  if (appType === APPTYPE_AGENT || appType === APPTYPE_INSURANCE_CUSTOMER) {
     if (data.holderId) {
       p = _findUserByHolderId(packet);
-    }
-    if (data.phoneNumber) {
+    } else if (data.phoneNumber) {
       p = _findUserByPhoneNumber(packet);
     }
   }
@@ -874,7 +883,7 @@ function resetVerification (packet = {}) {
 
   let p = getModelMethodPromise(schemaManager, "VerificationModel", "findOne");
 
-  if (appType === APPTYPE_AGENT) {
+  if (appType === APPTYPE_AGENT || appType === APPTYPE_INSURANCE_CUSTOMER) {
     if (!lodash.isString(data.phoneNumber) || lodash.isEmpty(data.phoneNumber)) {
       return Promise.reject(errorBuilder.newError("PhoneNumberMustBeNotNull", { language }));
     }
@@ -940,6 +949,14 @@ function assignUserData (appType, user = {}, data = {}, bcryptor) {
       user[appType].refreshToken = undefined;
       user[appType].verified = false;
     }
+  } else if (appType === APPTYPE_INSURANCE_CUSTOMER) {
+    if (lodash.isString(data.phoneNumber) && data.phoneNumber != user[appType].phoneNumber) {
+      // change the phoneNumber -> verified <- false, delete refreshToken
+      user[appType].phone = data.phone;
+      user[appType].phoneNumber = data.phoneNumber;
+      user[appType].refreshToken = undefined;
+      user[appType].verified = false;
+    }
   } else if (appType == APPTYPE_CLIENT) {
     if (lodash.isString(data.tokenKey) && data.tokenKey != user[appType].tokenKey) {
       user[appType].tokenKey = data.tokenKey;
@@ -978,6 +995,12 @@ function revokeToken (packet = {}) {
       conditions[[appType, "phoneNumber"].join(".")] = data.phoneNumber;
       return method(conditions, null, {});
     });
+  } else if (appType === APPTYPE_INSURANCE_CUSTOMER) {
+    p = p.then(function(method) {
+      const conditions = {};
+      conditions[[appType, "phoneNumber"].join(".")] = data.phoneNumber;
+      return method(conditions, null, {});
+    });
   }
   p = p.then(function(user) {
     if (user) {
@@ -1000,6 +1023,8 @@ function sanitizeAppType (appType) {
     return APPTYPE_CLIENT;
   } else if (["agentApp", "agent", "agent-app", "sales"].indexOf(appType) >= 0) {
     return APPTYPE_AGENT;
+  }  else if (["insuranceCustomerApp", "insurance-customer", "insurance-customer-app"].indexOf(appType) >= 0) {
+    return APPTYPE_INSURANCE_CUSTOMER;
   }
   return null;
 }
