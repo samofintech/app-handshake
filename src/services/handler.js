@@ -816,7 +816,7 @@ function updateUser (packet = {}) {
     });
   } else if (appType === APPTYPE_INSURANCE_CUSTOMER) {
     if (!data["holderId"] && !data["phoneNumber"]) {
-      return Promise.reject(errorBuilder.newError("AgentAppHolderIdOrPhoneNumberExpected",
+      return Promise.reject(errorBuilder.newError("InsuranceCustomerAppHolderIdOrPhoneNumberExpected",
       { payload: lodash.pick(data, ["holderId", "phoneNumber"]), language }));
     }
     p = p.then(function(method) {
