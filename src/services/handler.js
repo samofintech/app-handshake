@@ -65,18 +65,44 @@ function Handler (params = {}) {
 
   this.register = function (packet, options) {
     return validateAppType(injectOptions(packet, options)).then(function(packet) {
-      if (packet.appType === APPTYPE_ADMIN) {
-        return Promise.resolve(packet)
+      const { appType } = packet;
+      switch(appType) {
+        case APPTYPE_ADMIN:
+          return registerAdminAccount(packet);
+        case APPTYPE_AGENT:
+          return registerAgentAccount(packet);
+        case APPTYPE_CLIENT:
+          return registerClientAccount(packet);
+        case APPTYPE_INSURANCE_CUSTOMER:
+          return registerInsuranceCustomerAccount(packet);
+        default:
+          return Promise.reject(errorBuilder.newError("MethodUnsupportedForAppType", {
+            payload: {
+              appType: appType,
+              method: "register"
+            },
+            language
+          }));
+      }
+    });
+  };
+
+  function registerAdminAccount(packet) {
+    return Promise.resolve(packet)
           .then(attachServices)
           .then(loginAdminApp)
           .then(detachServices);
-      } else if (packet.appType === APPTYPE_CLIENT) {
-        return Promise.resolve(packet)
+  }
+
+  function registerClientAccount(packet) {
+    return Promise.resolve(packet)
           .then(attachServices)
           .then(loginClientApp)
           .then(detachServices);
-      } else if (packet.appType === APPTYPE_AGENT || packageName.appType === APPTYPE_INSURANCE_CUSTOMER) {
-        return Promise.resolve(packet)
+  }
+
+  function registerAgentAccount(packet) {
+    return Promise.resolve(packet)
           .then(attachServices)
           .then(upsertDevice)
           .then(validateUser)
@@ -84,9 +110,18 @@ function Handler (params = {}) {
           .then(sendOTP)
           .then(registerEnd)
           .then(detachServices);
-      }
-    });
-  };
+  }
+
+  function registerInsuranceCustomerAccount(packet) {
+    return Promise.resolve(packet)
+          .then(attachServices)
+          .then(upsertDevice)
+          .then(validateUser)
+          .then(generateOTP)
+          .then(sendOTP)
+          .then(registerEnd)
+          .then(detachServices);
+  }
 
   this.verificationCode = function (packet, options) {
     return validateAppType(injectOptions(packet, options))
@@ -157,7 +192,7 @@ function loginAdminApp (packet = {}) {
   })
   .then(function(method) {
     const conditions = {};
-    conditions[[appType, "username"].join(".")] = data.username;
+    conditions[[appType, "username"].join(".")] = { $regex : new RegExp(data.username, "i") };
     return method(conditions, null, {});
   })
   .then(function(user) {
@@ -483,7 +518,7 @@ function registerEnd (packet = {}) {
 
 function verifyOTP (packet = {}) {
   const { schemaManager, errorBuilder, oauthApi, appType, language, data } = packet;
-  if (appType !== APPTYPE_AGENT || appType != APPTYPE_INSURANCE_CUSTOMER) {
+  if (appType !== APPTYPE_AGENT && appType != APPTYPE_INSURANCE_CUSTOMER) {
     return Promise.reject(errorBuilder.newError("MethodUnsupportedForAppType", {
       payload: {
         appType: appType,
@@ -722,7 +757,64 @@ function updateUser (packet = {}) {
         }
       });
     });
-  } else if (appType === APPTYPE_AGENT || appType === APPTYPE_INSURANCE_CUSTOMER) {
+  } else if (appType === APPTYPE_AGENT) {
+    if (!data["holderId"] && !data["phoneNumber"]) {
+      return Promise.reject(errorBuilder.newError("AgentAppHolderIdOrPhoneNumberExpected",
+      { payload: lodash.pick(data, ["holderId", "phoneNumber"]), language }));
+    }
+    p = p.then(function(method) {
+      // sanitize the phone number
+      const err = sanitizePhone(data, config, errorBuilder, language);
+      if (err) {
+        return Promise.reject(err);
+      }
+      // query an user by the holderId
+      let findByHolderId = Promise.resolve();
+      if (data["holderId"]) {
+        const conditions = {};
+        conditions[[appType, "holderId"].join(".")] = data["holderId"];
+        findByHolderId = method(conditions, null, {});
+      }
+      // query an user by the phoneNumber
+      let findByPhoneNumber = Promise.resolve();
+      if (data["phoneNumber"]) {
+        const conditions = {};
+        conditions[[appType, "phoneNumber"].join(".")] = data["phoneNumber"];
+        findByPhoneNumber = method(conditions, null, {});
+      }
+      // make the query
+      return Promise.all([findByHolderId, findByPhoneNumber])
+      .spread(function(userById, user) {
+        if (userById) {
+          if (user) {
+            if (userById._id.toString() !== user._id.toString()) {
+              return Promise.reject(errorBuilder.newError("PhoneNumberHasOccupied", { payload: {
+                holderId: data["holderId"],
+                phoneNumber: data["phoneNumber"]
+              }, language }));
+            }
+          }
+          assignUserData(appType, userById, data, bcryptor);
+          return userById.save();
+        } else {
+          if (user) {
+            assignUserData(appType, user, data, bcryptor);
+            return user.save();
+          } else {
+            const user = {};
+            assignUserData(appType, user, data, bcryptor);
+            const userCreate = getModelMethodPromise(schemaManager, "UserModel", "create");
+            return userCreate.then(function(method) {
+              const opts = {};
+              return method([user], opts).spread(function(user) {
+                return user;
+              });
+            });
+          }
+        }
+      });
+    });
+  } else if (appType === APPTYPE_INSURANCE_CUSTOMER) {
     if (!data["holderId"] && !data["phoneNumber"]) {
       return Promise.reject(errorBuilder.newError("AgentAppHolderIdOrPhoneNumberExpected",
       { payload: lodash.pick(data, ["holderId", "phoneNumber"]), language }));
@@ -1023,7 +1115,7 @@ function sanitizeAppType (appType) {
     return APPTYPE_CLIENT;
   } else if (["agentApp", "agent", "agent-app", "sales"].indexOf(appType) >= 0) {
     return APPTYPE_AGENT;
-  }  else if (["insuranceCustomerApp", "insurance-customer", "insurance-customer-app"].indexOf(appType) >= 0) {
+  }  else if (["insuranceCustomerApp", "insuranceCustomer",  "insurance-customer", "insurance-customer-app"].indexOf(appType) >= 0) {
     return APPTYPE_INSURANCE_CUSTOMER;
   }
   return null;

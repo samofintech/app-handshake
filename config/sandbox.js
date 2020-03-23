@@ -84,6 +84,11 @@ module.exports = {
           returnCode: 1126,
           statusCode: 400
         },
+        InsuranceCustomerAppHolderIdOrPhoneNumberExpected: {
+          message: "[InsuranceCustomerApp]: holderId/phoneNumber expected",
+          returnCode: 1127,
+          statusCode: 400
+        },
         // phoneNumber
         PhoneNumberMustBeNotNull: {
           message: "One of phoneNumber and phone object must be not null",
