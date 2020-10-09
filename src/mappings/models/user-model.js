@@ -20,6 +20,7 @@ module.exports = {
       username: { type: String },
       password: { type: String },
       permissions: [String],
+      permissionGroups: [String],
       holderId: { type: Schema.Types.ObjectId },
       verified: { type: Boolean, default: false },
       refreshToken: { type: String }

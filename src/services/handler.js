@@ -17,7 +17,7 @@ const mongoose = require("app-datastore").require("mongoose");
 
 const APPTYPE_ADMIN = "adminApp";
 const APPTYPE_AGENT = "agentApp";
-const APPTYPE_INSURANCE_CUSTOMER = "insuranceCustomerApp";
+const APPTYPE_CUSTOMER = "customerApp";
 const APPTYPE_CLIENT = "clientApp";
 
 function Handler (params = {}) {
@@ -73,7 +73,7 @@ function Handler (params = {}) {
           return registerAgentAccount(packet);
         case APPTYPE_CLIENT:
           return registerClientAccount(packet);
-        case APPTYPE_INSURANCE_CUSTOMER:
+        case APPTYPE_CUSTOMER:
           return registerInsuranceCustomerAccount(packet);
         default:
           return Promise.reject(errorBuilder.newError("MethodUnsupportedForAppType", {
@@ -235,6 +235,7 @@ function loginAdminApp (packet = {}) {
           email: user[appType].email,
           username: user[appType].username,
           permissions: user[appType].permissions || [],
+          permissionGroups: user[appType].permissionGroups || []
         },
       }),
       refresh_token: user[appType].refreshToken,
@@ -518,7 +519,7 @@ function registerEnd (packet = {}) {
 
 function verifyOTP (packet = {}) {
   const { schemaManager, errorBuilder, oauthApi, appType, language, data } = packet;
-  if (appType !== APPTYPE_AGENT && appType != APPTYPE_INSURANCE_CUSTOMER) {
+  if (appType !== APPTYPE_AGENT && appType != APPTYPE_CUSTOMER) {
     return Promise.reject(errorBuilder.newError("MethodUnsupportedForAppType", {
       payload: {
         appType: appType,
@@ -643,6 +644,7 @@ function refreshToken (packet = {}) {
         email: user[appType].email,
         username: user[appType].username,
         permissions: user[appType].permissions || [],
+        permissionGroups: user[appType].permissionGroups || []
       });
     } else if (appType === APPTYPE_CLIENT) {
       constraints = lodash.assign(constraints, {
@@ -654,7 +656,7 @@ function refreshToken (packet = {}) {
       constraints = lodash.assign(constraints, {
         phoneNumber: user[appType].phoneNumber,
       });
-    } else if (appType === APPTYPE_INSURANCE_CUSTOMER) {
+    } else if (appType === APPTYPE_CUSTOMER) {
       constraints = lodash.assign(constraints, {
         phoneNumber: user[appType].phoneNumber,
       });
@@ -680,7 +682,7 @@ function filterUserInfo (packet = {}) {
 
   if (appType === APPTYPE_ADMIN) {
     data = lodash.assign(data, lodash.pick(lodash.get(user, appType), [
-      "holderId", "username", "permissions"
+      "holderId", "username", "permissions", "permissionGroups"
     ]));
   } else if (appType === APPTYPE_CLIENT) {
     data = lodash.assign(
@@ -691,12 +693,11 @@ function filterUserInfo (packet = {}) {
     data = lodash.assign(data, lodash.pick(lodash.get(user, appType), [
       "holderId", "phoneNumber"
     ]));
-  } else if (appType === APPTYPE_INSURANCE_CUSTOMER) {
+  } else if (appType === APPTYPE_CUSTOMER) {
     data = lodash.assign(data, lodash.pick(lodash.get(user, appType), [
       "holderId", "phoneNumber"
     ]));
   }
-
   return lodash.assign(packet, { data });
 }
 
@@ -738,14 +739,17 @@ function updateUser (packet = {}) {
             }
           }
           assignUserData(appType, byHolderId, data, bcryptor);
+          console.log("byHolderId :::", byHolderId);
           return byHolderId.save();
         } else {
           if (byUsername) {
             assignUserData(appType, byUsername, data, bcryptor);
+            console.log("byUsername :::", byUsername);
             return byUsername.save();
           } else {
             const user = {};
             assignUserData(appType, user, data, bcryptor);
+            console.log("user :::", user);
             const userCreate = getModelMethodPromise(schemaManager, "UserModel", "create");
             return userCreate.then(function(method) {
               const opts = {};
@@ -814,7 +818,7 @@ function updateUser (packet = {}) {
         }
       });
     });
-  } else if (appType === APPTYPE_INSURANCE_CUSTOMER) {
+  } else if (appType === APPTYPE_CUSTOMER) {
     if (!data["holderId"] && !data["phoneNumber"]) {
       return Promise.reject(errorBuilder.newError("InsuranceCustomerAppHolderIdOrPhoneNumberExpected",
       { payload: lodash.pick(data, ["holderId", "phoneNumber"]), language }));
@@ -947,7 +951,7 @@ function getVerification (packet = {}) {
   const { appType, data } = packet;
 
   let p = Promise.resolve();
-  if (appType === APPTYPE_AGENT || appType === APPTYPE_INSURANCE_CUSTOMER) {
+  if (appType === APPTYPE_AGENT || appType === APPTYPE_CUSTOMER) {
     if (data.holderId) {
       p = _findUserByHolderId(packet);
     } else if (data.phoneNumber) {
@@ -975,7 +979,7 @@ function resetVerification (packet = {}) {
 
   let p = getModelMethodPromise(schemaManager, "VerificationModel", "findOne");
 
-  if (appType === APPTYPE_AGENT || appType === APPTYPE_INSURANCE_CUSTOMER) {
+  if (appType === APPTYPE_AGENT || appType === APPTYPE_CUSTOMER) {
     if (!lodash.isString(data.phoneNumber) || lodash.isEmpty(data.phoneNumber)) {
       return Promise.reject(errorBuilder.newError("PhoneNumberMustBeNotNull", { language }));
     }
@@ -1023,6 +1027,10 @@ function assignUserData (appType, user = {}, data = {}, bcryptor) {
     user[appType].permissions = data.permissions;
   }
 
+  if (lodash.isArray(data.permissionGroups) && !lodash.isEmpty(data.permissionGroups)) {
+    user[appType].permissionGroups = data.permissionGroups;
+  }
+
   if (appType === APPTYPE_ADMIN) {
     if (lodash.isString(data.username) && data.username != user[appType].username) {
       // change the phoneNumber -> verified <- false, delete refreshToken
@@ -1041,7 +1049,7 @@ function assignUserData (appType, user = {}, data = {}, bcryptor) {
       user[appType].refreshToken = undefined;
       user[appType].verified = false;
     }
-  } else if (appType === APPTYPE_INSURANCE_CUSTOMER) {
+  } else if (appType === APPTYPE_CUSTOMER) {
     if (lodash.isString(data.phoneNumber) && data.phoneNumber != user[appType].phoneNumber) {
       // change the phoneNumber -> verified <- false, delete refreshToken
       user[appType].phone = data.phone;
@@ -1087,7 +1095,7 @@ function revokeToken (packet = {}) {
       conditions[[appType, "phoneNumber"].join(".")] = data.phoneNumber;
       return method(conditions, null, {});
     });
-  } else if (appType === APPTYPE_INSURANCE_CUSTOMER) {
+  } else if (appType === APPTYPE_CUSTOMER) {
     p = p.then(function(method) {
       const conditions = {};
       conditions[[appType, "phoneNumber"].join(".")] = data.phoneNumber;
@@ -1115,8 +1123,8 @@ function sanitizeAppType (appType) {
     return APPTYPE_CLIENT;
   } else if (["agentApp", "agent", "agent-app", "sales"].indexOf(appType) >= 0) {
     return APPTYPE_AGENT;
-  }  else if (["insuranceCustomerApp", "insuranceCustomer",  "insurance-customer", "insurance-customer-app"].indexOf(appType) >= 0) {
-    return APPTYPE_INSURANCE_CUSTOMER;
+  }  else if (["customerApp", "customer", "customer-app"].indexOf(appType) >= 0) {
+    return APPTYPE_CUSTOMER;
   }
   return null;
 }

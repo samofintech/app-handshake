@@ -315,17 +315,116 @@ const apiMaps = [
       transform: transformError,
     },
   },
+  {
+    path: ['/auth/permission-groups/create', "/auth/permission-groups/create/:appType"],
+    method: 'POST',
+    input: {
+      examples: [
+        {
+          path: '/permission-groups/create',
+          headers: {
+            'X-App-Type': 'adminApp',
+          },
+          body: {
+            name: "ADMIN_GROUP",
+            permissions: [""]
+          },
+        },
+        {
+          path: '/permission-groups/create/admin',
+          body: {
+            name: "ADMIN_GROUP",
+            permissions: [""]
+          },
+        },
+      ],
+      transform: function(req) {
+        if (lodash.isEmpty(req.body) || !lodash.isObject(req.body)) {
+          return Bluebird.reject(new Error("Request's body is invalid"));
+        };
+        return {
+          name: req.body.name,
+          permissions: req.body.permissions,
+          appType: extractAppType(req)
+        }
+      }
+    },
+    serviceName: 'app-handshake/permissionGroup',
+    methodName: 'createPermissionGroup',
+    output: {
+      transform: function(result = {}, req) {
+        const payload = {
+          headers: {
+            "X-Return-Code": result.code || 0
+          },
+          body: result
+        };
+        return payload;
+      }
+    },
+    error: {
+      transform: transformError,
+    },
+  },
+  {
+    path: ['/auth/permission-groups/getPermission', "/auth/permission-groups/getPermission/:appType"],
+    method: 'POST',
+    input: {
+      examples: [
+        {
+          path: '/auth/permission-groups/getPermission',
+          headers: {
+            'X-App-Type': 'adminApp',
+          },
+          body: {
+            groups: [""]
+          },
+        },
+        {
+          path: '/auth/permission-groups/getPermission/admin',
+          body: {
+            groups: [""]
+          },
+        },
+      ],
+      transform: function(req) {
+        if (lodash.isEmpty(req.body) || !lodash.isObject(req.body)) {
+          return Bluebird.reject(new Error("Request's body is invalid"));
+        };
+        return {
+          groups: req.body.groups,
+          appType: extractAppType(req)
+        }
+      }
+    },
+    serviceName: 'app-handshake/permissionGroup',
+    methodName: 'getPermissionByGroupNameAndAppType',
+    output: {
+      transform: function(result = {}, req) {
+        const payload = {
+          headers: {
+            "X-Return-Code": result.code || 0
+          },
+          body: result
+        };
+        return payload;
+      }
+    },
+    error: {
+      transform: transformError,
+    },
+  }
 ];
 
-function extractAppType (req) {
+function extractAppType(req) {
   return req.params.appType || req.get('X-App-Type') || 'agent';
 }
 
-function extractLangCode (req) {
+function extractLangCode(req) {
   return req.get('X-Lang-Code') || req.get('X-Language');
 }
 
-function transformOutput (result = {}, req) {
+function transformOutput(result = {}, req) {
   const payload = {
     headers: {
       "X-Return-Code": result.code || 0
@@ -335,7 +434,7 @@ function transformOutput (result = {}, req) {
   return payload;
 }
 
-function transformError (err, req) {
+function transformError(err, req) {
   const output = {
     statusCode: err.statusCode || 500,
     headers: {},
