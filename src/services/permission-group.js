@@ -30,7 +30,6 @@ function PermissionGroup(params) {
       }));
     }
     return getOnePermissionGroupByNameAndAppType({name, appTypeConvert}).then(permissionGroup => {
-        console.log("getOnePermissionGroupByNameAndAppType :::", permissionGroup);
         if (permissionGroup) {
           permissionGroup.permissions = permissions;
           return permissionGroup.save();

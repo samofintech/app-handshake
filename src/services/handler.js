@@ -739,17 +739,14 @@ function updateUser (packet = {}) {
             }
           }
           assignUserData(appType, byHolderId, data, bcryptor);
-          console.log("byHolderId :::", byHolderId);
           return byHolderId.save();
         } else {
           if (byUsername) {
             assignUserData(appType, byUsername, data, bcryptor);
-            console.log("byUsername :::", byUsername);
             return byUsername.save();
           } else {
             const user = {};
             assignUserData(appType, user, data, bcryptor);
-            console.log("user :::", user);
             const userCreate = getModelMethodPromise(schemaManager, "UserModel", "create");
             return userCreate.then(function(method) {
               const opts = {};
