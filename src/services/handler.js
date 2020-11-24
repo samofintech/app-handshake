@@ -386,6 +386,7 @@ function validateUser (packet = {}) {
   return _findUserByPhoneNumber(packet)
   .then(function(user) {
     if (!user && config.rejectUnknownUser === false) {
+      /*  OLD business logic. Create a new account if phoneNumber not found
       if (!lodash.isFunction(config.createIfUserNotFound) || config.createIfUserNotFound(packet)) {
         const user = {};
         user[appType] = { device };
@@ -397,7 +398,12 @@ function validateUser (packet = {}) {
             return user;
           });
         });
-      }
+      } */
+      /* NEW business logic. Return User Not Found Error */
+      return Promise.reject(errorBuilder.newError("UserNotFound", {
+        payload: _extractUserQuery(appType, data),
+        language
+      }));
     }
     return _checkUser(packet, user).then(function(user) {
       lodash.assign(user[appType], { device: device });
