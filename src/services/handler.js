@@ -416,15 +416,9 @@ function validateUser(packet = {}) {
 }
 
 function validateCustomer(packet = {}) {
-  const { config, appType, data, device } = packet;
+  const { appType, device } = packet;
   return _findUserByPhoneNumber(packet)
     .then(function(user) {
-      if (!user && config.rejectUnknownUser === false) {
-        return Promise.reject(errorBuilder.newError("UserNotFound", {
-          payload: _extractUserQuery(appType, data),
-          language
-        }));
-      }
       return _checkUser(packet, user).then(function(user) {
         lodash.assign(user[appType], { device: device });
         return user.save();
@@ -782,17 +776,14 @@ function updateUser(packet = {}) {
               }
             }
             assignUserData(appType, byHolderId, data, bcryptor);
-            console.log("byHolderId :::", byHolderId);
             return byHolderId.save();
           } else {
             if (byUsername) {
               assignUserData(appType, byUsername, data, bcryptor);
-              console.log("byUsername :::", byUsername);
               return byUsername.save();
             } else {
               const user = {};
               assignUserData(appType, user, data, bcryptor);
-              console.log("user :::", user);
               const userCreate = getModelMethodPromise(schemaManager, "UserModel", "create");
               return userCreate.then(function(method) {
                 const opts = {};
