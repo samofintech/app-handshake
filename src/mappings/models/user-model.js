@@ -37,7 +37,7 @@ module.exports = {
       verified: { type: Boolean, default: false },
       refreshToken: { type: String }
     },
-    insuranceCustomerApp: {
+    customerApp: {
       device: { type: Schema.Types.ObjectId, ref: "DeviceModel" },
       phoneNumber: { type: String },
       phone: {
