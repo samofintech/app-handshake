@@ -6,7 +6,9 @@ const lodash = Devebot.require('lodash');
 
 const apiMaps = [
   {
-    path: ['/auth/login', '/auth/login/:appType'],
+    path: [
+      '/auth/login', '/auth/login/:appType'
+    ],
     method: 'POST',
     input: {
       transform: function(req, reqOpts) {
@@ -57,6 +59,7 @@ const apiMaps = [
     error: {
       transform: transformError,
     },
+    scope: "public",
   },
   {
     path: '/auth/verification-code',
@@ -87,9 +90,12 @@ const apiMaps = [
     error: {
       transform: transformError,
     },
+    scope: "public",
   },
   {
-    path: ['/auth/refresh-token', '/auth/refresh-token/:appType'],
+    path: [
+      '/auth/refresh-token', '/auth/refresh-token/:appType'
+    ],
     method: 'POST',
     input: {
       transform: function(req) {
@@ -107,10 +113,13 @@ const apiMaps = [
     },
     error: {
       transform: transformError,
-    }
+    },
+    scope: "public",
   },
   {
-    path: ['/auth/revoke-token', '/auth/revoke-token/:appType'],
+    path: [
+      '/auth/revoke-token', '/auth/revoke-token/:appType'
+    ],
     method: 'POST',
     input: {
       examples: [
@@ -137,6 +146,7 @@ const apiMaps = [
     error: {
       transform: transformError,
     },
+    scope: "private",
   },
   {
     path: [
@@ -170,6 +180,7 @@ const apiMaps = [
     error: {
       transform: transformError,
     },
+    scope: "private",
   },
   {
     path: [
@@ -208,6 +219,7 @@ const apiMaps = [
     error: {
       transform: transformError,
     },
+    scope: "private",
   },
   {
     path: [
@@ -240,9 +252,12 @@ const apiMaps = [
     error: {
       transform: transformError,
     },
+    scope: "private",
   },
   {
-    path: ['/util/reset-verification', '/util/reset-verification/:appType'],
+    path: [
+      '/util/reset-verification', '/util/reset-verification/:appType'
+    ],
     method: 'POST',
     input: {
       examples: [
@@ -278,6 +293,7 @@ const apiMaps = [
     error: {
       transform: transformError,
     },
+    scope: "private",
   },
   {
     path: '/util/hash-password',
@@ -314,6 +330,7 @@ const apiMaps = [
     error: {
       transform: transformError,
     },
+    scope: "private",
   },
   {
     path: ['/auth/permission-groups/create', "/auth/permission-groups/create/:appType"],
@@ -365,9 +382,12 @@ const apiMaps = [
     error: {
       transform: transformError,
     },
+    scope: "private",
   },
   {
-    path: ['/auth/permission-groups/getPermission', "/auth/permission-groups/getPermission/:appType"],
+    path: [
+      '/auth/permission-groups/getPermission', "/auth/permission-groups/getPermission/:appType"
+    ],
     method: 'POST',
     input: {
       examples: [
@@ -413,6 +433,7 @@ const apiMaps = [
     error: {
       transform: transformError,
     },
+    scope: "private",
   }
 ];
 
