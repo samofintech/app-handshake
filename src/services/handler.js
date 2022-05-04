@@ -694,6 +694,10 @@ function refreshToken(packet = {}) {
       } else if (appType === APPTYPE_CUSTOMER) {
         constraints = lodash.assign(constraints, {
           phoneNumber: user[appType].phoneNumber,
+          email: user[appType].email,
+          username: user[appType].username,
+          permissions: user[appType].permissions,
+          permissionGroups: user[appType].permissionGroups,
         });
       }
       const auth = {
@@ -702,6 +706,10 @@ function refreshToken(packet = {}) {
         refresh_token: user[appType].refreshToken,
         expires_in: expiredIn,
         expired_time: expiredTime,
+        email: lodash.get(user[appType], "email"),
+        username: lodash.get(user[appType], "username"),
+        permissions: lodash.get(user[appType], "permissions"),
+        permissionGroups: lodash.get(user[appType], "permissionGroups"),
         revisions: revisions,
       };
       return lodash.assign(packet, { data: { auth } });
