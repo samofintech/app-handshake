@@ -637,9 +637,9 @@ function verifyOTP(packet = {}) {
         token_type: "Bearer",
         access_token: oauthApi.createAppAccessToken({
           user,
-          constraints: lodash.pick(verification, [
+          constraints: lodash.merge(lodash.pick(verification, [
             "appType", "expiredIn", "expiredTime", "phoneNumber"
-          ])
+          ]), { email: user[appType].email, permissionGroups: user[appType].permissionGroups })
         }),
         refresh_token: user[verification.appType].refreshToken,
         expires_in: verification.expiredIn,
@@ -689,7 +689,10 @@ function refreshToken(packet = {}) {
         });
       } else if (appType === APPTYPE_AGENT) {
         constraints = lodash.assign(constraints, {
+          email: user[appType].email,
           phoneNumber: user[appType].phoneNumber,
+          permissions: user[appType].permissions,
+          permissionGroups: user[appType].permissionGroups,
         });
       } else if (appType === APPTYPE_CUSTOMER) {
         constraints = lodash.assign(constraints, {
