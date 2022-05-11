@@ -639,7 +639,7 @@ function verifyOTP(packet = {}) {
           user,
           constraints: lodash.merge(lodash.pick(verification, [
             "appType", "expiredIn", "expiredTime", "phoneNumber"
-          ]), { email: user[appType].email, permissionGroups: user[appType].permissionGroups })
+          ]), { email: user[verification.appType].email, permissionGroups: user[verification.appType].permissionGroups })
         }),
         refresh_token: user[verification.appType].refreshToken,
         expires_in: verification.expiredIn,
