@@ -42,7 +42,8 @@ module.exports = {
       // End 0.3.16
       holderId: { type: Schema.Types.ObjectId },
       verified: { type: Boolean, default: false },
-      refreshToken: { type: String }
+      refreshToken: { type: String },
+      refreshTokenWeb: { type: String }
     },
     customerApp: {
       device: { type: Schema.Types.ObjectId, ref: "DeviceModel" },

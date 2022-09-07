@@ -17,6 +17,7 @@ module.exports = {
     user: { type: Schema.Types.ObjectId, ref: "UserModel" },
     device: { type: Schema.Types.ObjectId, ref: "DeviceModel" },
     appType: { type: String },
+    appPlatformType: { type: String },
     phoneNumber: { type: String },
     verified: { type: Boolean, default: false },
     // Filtering

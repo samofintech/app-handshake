@@ -12,6 +12,7 @@ const apiMaps = [
       transform: function(req, reqOpts) {
         return {
           appType: extractAppType(req),
+          appPlatformType: extractAppPlatformType(req),
           language: extractLangCode(req),
           schemaVersion: reqOpts.schemaVersion || req.headers['x-schema-version'],
           data: req.body
@@ -65,6 +66,7 @@ const apiMaps = [
       transform: function(req) {
         return {
           appType: extractAppType(req),
+          appPlatformType: extractAppPlatformType(req),
           language: extractLangCode(req),
           data: req.body
         }
@@ -95,6 +97,7 @@ const apiMaps = [
       transform: function(req) {
         return {
           appType: extractAppType(req),
+          appPlatformType: extractAppPlatformType(req),
           language: extractLangCode(req),
           data: req.body
         }
@@ -124,6 +127,7 @@ const apiMaps = [
       transform: function(req) {
         return {
           appType: extractAppType(req),
+          appPlatformType: extractAppPlatformType(req),
           language: extractLangCode(req),
           data: req.body
         }
@@ -157,6 +161,7 @@ const apiMaps = [
       transform: function(req) {
         return {
           appType: extractAppType(req),
+          appPlatformType: extractAppPlatformType(req),
           language: extractLangCode(req),
           data: req.body
         }
@@ -195,6 +200,7 @@ const apiMaps = [
       transform: function(req) {
         return {
           appType: extractAppType(req),
+          appPlatformType: extractAppPlatformType(req),
           language: extractLangCode(req),
           data: req.body
         }
@@ -227,6 +233,7 @@ const apiMaps = [
       transform: function(req) {
         return {
           appType: extractAppType(req),
+          appPlatformType: extractAppPlatformType(req),
           language: extractLangCode(req),
           data: req.body
         }
@@ -265,6 +272,7 @@ const apiMaps = [
       transform: function(req) {
         return {
           appType: extractAppType(req),
+          appPlatformType: extractAppPlatformType(req),
           language: extractLangCode(req),
           data: req.body
         }
@@ -345,7 +353,8 @@ const apiMaps = [
         return {
           name: req.body.name,
           permissions: req.body.permissions,
-          appType: extractAppType(req)
+          appType: extractAppType(req),
+          appPlatformType: extractAppPlatformType(req)
         }
       }
     },
@@ -393,7 +402,8 @@ const apiMaps = [
         };
         return {
           groups: req.body.groups,
-          appType: extractAppType(req)
+          appType: extractAppType(req),
+          appPlatformType: extractAppPlatformType(req)
         }
       }
     },
@@ -417,7 +427,11 @@ const apiMaps = [
 ];
 
 function extractAppType(req) {
-  return req.params.appType || req.get('X-App-Type') || 'agent';
+  return req.params.appType || req.get('X-App-Type') || req.get('x-app-type') || 'agent';
+}
+
+function extractAppPlatformType(req) {
+  return req.params.appPlatformType || req.get('X-Mobile-App') || req.get('x-mobile-app');
 }
 
 function extractLangCode(req) {
