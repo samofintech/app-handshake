@@ -645,7 +645,7 @@ function verifyOTP(packet = {}) {
           if (appType === APP_TYPES.AGENT) {
             user[verification.appType][REFRESH_TOKEN_TYPE[verification.appPlatformType]] = genKey();
           } else {
-            user[verification.appType].refreshToken = genKey(); 
+            user[verification.appType].refreshToken = genKey();
           }
           return [user.save(), verification];
         });
@@ -680,8 +680,12 @@ function refreshToken(packet = {}) {
     })
     .then(function(method) {
       const conditions = {};
-      if (appType === APP_TYPES.AGENT) {
-        conditions[[appType, REFRESH_TOKEN_TYPE[appPlatformType]].join(".")] = data.refreshToken;
+      if (appType === APP_TYPES.AGENT && appPlatformType === APP_PLATFORM_TYPES.WEB) {
+        if (data && data.refreshToken) {
+          conditions[[appType, "refreshToken"].join(".")] = data.refreshToken;
+        } else if (data && data.refreshTokenWeb) {
+          conditions[[appType, "refreshTokenWeb"].join(".")] = data.refreshTokenWeb;
+        }
       } else {
         conditions[[appType, "refreshToken"].join(".")] = data.refreshToken;
       }
@@ -1048,7 +1052,7 @@ function getVerification(packet = {}) {
         data: lodash.pick(verification, ["key", "otp", "expiredIn", "expiredTime", "verified"])
       });
     });
-    
+
   return p;
 }
 
@@ -1218,8 +1222,6 @@ function validateAppType(packet) {
   const appPlatformType = sanitizeAppPlatformType(packet.appPlatformType);
   if (appType == null) {
     return Promise.reject(new Error(util.format("Unsupported appType [%s]", packet.appType)));
-  } else if (appType === APP_TYPES.AGENT && appPlatformType == null) {
-    return Promise.reject(new Error(util.format("Unsupported appType [%s]", packet.appPlatFormType)));
   }
   packet.appType = appType;
   packet.appPlatformType = appPlatformType;
