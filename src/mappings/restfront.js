@@ -431,7 +431,7 @@ function extractAppType(req) {
 }
 
 function extractAppPlatformType(req) {
-  return req.params.appPlatformType || req.get('X-Mobile-App') || req.get('x-mobile-app');
+  return req.params.appPlatformType || req.get('X-Platform-App') || req.get('X-Mobile-App') || req.get('x-mobile-app') || "unknown";
 }
 
 function extractLangCode(req) {

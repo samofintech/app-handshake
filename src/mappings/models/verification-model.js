@@ -24,7 +24,7 @@ module.exports = {
     tags: [String],
     deleted: { type: Boolean, default: false },
     // Auditing
-    createdAt: { type: Date },
+    createdAt: { type: Date, default: Date.now },
     updatedAt: { type: Date, default: Date.now }
   },
   options: {

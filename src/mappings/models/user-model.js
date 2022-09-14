@@ -78,7 +78,7 @@ module.exports = {
     tags: [String],
     // Auditing
     createdBy: { type: String },
-    createdAt: { type: Date },
+    createdAt: { type: Date, default: Date.now },
     updatedBy: { type: String },
     updatedAt: { type: Date, default: Date.now }
   },

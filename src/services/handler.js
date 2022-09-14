@@ -24,12 +24,14 @@ const APP_TYPES = {
 
 const APP_PLATFORM_TYPES = {
   APP: "app",
-  WEB: "web"
+  WEB: "web",
+  DEFAULT: "default"
 };
 
 const REFRESH_TOKEN_TYPE = {
   app: "refreshToken",
-  web: "refreshTokenWeb"
+  web: "refreshTokenWeb",
+  default: "refreshToken"
 };
 
 function Handler(params = {}) {
@@ -37,7 +39,7 @@ function Handler(params = {}) {
   const T = params.loggingFactory.getTracer();
   const packageName = params.packageName || "app-handshake";
 
-  const { bcryptor, oauthApi, errorManager, sandboxRegistry, schemaManager } = params;
+  const { bcryptor, oauthApi, errorManager, sandboxRegistry, schemaManager, eventor } = params;
 
   const config = lodash.get(params, ["sandboxConfig"], {});
   config.otpExpiredIn = config.otpExpiredIn || 15 * 60;
@@ -66,7 +68,7 @@ function Handler(params = {}) {
 
   const ctx = {
     L, T, packageName, config, schemaManager, serviceSelector,
-    errorBuilder, oauthApi, bcryptor
+    errorBuilder, oauthApi, bcryptor, eventor
   };
 
   function attachServices(packet) {
@@ -186,7 +188,8 @@ Handler.referenceHash = {
   oauthApi: "oauthApi",
   errorManager: "app-errorlist/manager",
   sandboxRegistry: "devebot/sandboxRegistry",
-  schemaManager: "app-datastore/schemaManager"
+  schemaManager: "app-datastore/schemaManager",
+  eventor: "eventor"
 };
 
 module.exports = Handler;
@@ -555,7 +558,7 @@ function registerEnd(packet = {}) {
 }
 
 function verifyOTP(packet = {}) {
-  const { schemaManager, errorBuilder, oauthApi, appType, language, data } = packet;
+  const { eventor, schemaManager, errorBuilder, oauthApi, appType, language, data } = packet;
   if (appType !== APP_TYPES.AGENT && appType != APP_TYPES.CUSTOMER) {
     return Promise.reject(errorBuilder.newError("MethodUnsupportedForAppType", {
       payload: {
@@ -651,21 +654,29 @@ function verifyOTP(packet = {}) {
         });
     })
     .spread(function(user, verification) {
+      const accessToken = oauthApi.createAppAccessToken({
+        user,
+        constraints: lodash.merge(lodash.pick(verification, [
+          "appType", "expiredIn", "expiredTime", "phoneNumber"
+        ]), { email: user[verification.appType].email, permissionGroups: user[verification.appType].permissionGroups })
+      });
       if (user && lodash.isFunction(user.toJSON)) {
         user = user.toJSON();
       }
       const auth = {
         token_type: "Bearer",
-        access_token: oauthApi.createAppAccessToken({
-          user,
-          constraints: lodash.merge(lodash.pick(verification, [
-            "appType", "expiredIn", "expiredTime", "phoneNumber"
-          ]), { email: user[verification.appType].email, permissionGroups: user[verification.appType].permissionGroups })
-        }),
+        access_token: accessToken,
         refresh_token: user[verification.appType][REFRESH_TOKEN_TYPE[verification.appPlatformType]],
         expires_in: verification.expiredIn,
         expired_time: verification.expiredTime,
       };
+      // Push to EventBeat
+      eventor.loginFirstOTPSuccess({
+        appType: verification.appType,
+        appPlatformType: verification.appPlatform,
+        phoneNumber: verification.phoneNumber,
+        accessToken: accessToken
+      });
       return lodash.assign(packet, { data: { auth, user } });
     });
 }
@@ -1213,6 +1224,8 @@ function sanitizeAppPlatformType(appPlatformType) {
     return APP_PLATFORM_TYPES.APP;
   } else if (["web", "Web", "WEB"].indexOf(appPlatformType) >= 0) {
     return APP_PLATFORM_TYPES.WEB;
+  } else if (["unknown", "default"].indexOf(appPlatformType) >= 0) {
+    return APP_PLATFORM_TYPES.DEFAULT;
   }
   return null;
 }
