@@ -48,6 +48,7 @@ function Eventor(params = {}) {
               "X-App-Type": appType,
               "Content-Type": "application/json",
               "X-Domain-Type": "User-Engagement",
+              "X-Tier-Type": process.env.X_TIER_TYPE,
               "X-Request-Id": uuid.v4(),
             }
           });
