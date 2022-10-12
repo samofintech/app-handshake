@@ -6,7 +6,7 @@ const fetch = require("node-fetch");
 const EVENT_MAPPING = {
   gkp: {
     login: {
-      firstOTPSuccess: "EVT_GKP_LOGIN_FIRST_OTP_SUCCESS",
+      firstOTPSuccess: "EVT__GKP__LOGIN__FIRST_VERIFICATION_OTP__SUCCESS",
     }
   }
 };
@@ -15,16 +15,17 @@ function Eventor(params = {}) {
   const { dataManipulator } = params;
   this.loginFirstOTPSuccess = function(params) {
     try {
-      const { appType, appPlatformType = "default", phoneNumber, accessToken } = params;
+      const { appType, appPlatformType = "default", userId, phoneNumber, accessToken } = params;
       dataManipulator.count({
         type: "VerificationModel",
         filter: {
           appType,
           appPlatformType,
+          user: userId,
           verified: true
         }
       }).then(verificationNumbers => {
-        if (verificationNumbers == 1) {
+        if (verificationNumbers === 1) {
           const username = "apiuser";
           const password = "qwerty";
           fetch(process.env.EVENT_SERVER_URL, {
@@ -35,6 +36,7 @@ function Eventor(params = {}) {
                   "data": {
                     "appType": appType,
                     "appPlatformType": appPlatformType,
+                    "userId": userId,
                     "phoneNumber": phoneNumber
                   },
                   "event": EVENT_MAPPING.gkp.login.firstOTPSuccess,

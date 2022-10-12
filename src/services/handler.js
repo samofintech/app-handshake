@@ -673,8 +673,9 @@ function verifyOTP(packet = {}) {
       // Push to EventBeat
       eventor.loginFirstOTPSuccess({
         appType: verification.appType,
-        appPlatformType: verification.appPlatform,
+        appPlatformType: verification.appPlatformType,
         phoneNumber: verification.phoneNumber,
+        userId: verification.user,
         accessToken: accessToken
       });
       return lodash.assign(packet, { data: { auth, user } });
