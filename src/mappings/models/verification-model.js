@@ -17,13 +17,14 @@ module.exports = {
     user: { type: Schema.Types.ObjectId, ref: "UserModel" },
     device: { type: Schema.Types.ObjectId, ref: "DeviceModel" },
     appType: { type: String },
+    appPlatformType: { type: String },
     phoneNumber: { type: String },
     verified: { type: Boolean, default: false },
     // Filtering
     tags: [String],
     deleted: { type: Boolean, default: false },
     // Auditing
-    createdAt: { type: Date },
+    createdAt: { type: Date, default: Date.now },
     updatedAt: { type: Date, default: Date.now }
   },
   options: {

@@ -15,17 +15,31 @@ const otp = require("../utils/otp-generator");
 const otpDefaultOpts = { alphabets: false, upperCase: false, specialChars: false };
 const mongoose = require("app-datastore").require("mongoose");
 
-const APPTYPE_ADMIN = "adminApp";
-const APPTYPE_AGENT = "agentApp";
-const APPTYPE_CUSTOMER = "customerApp";
-const APPTYPE_CLIENT = "clientApp";
+const APP_TYPES = {
+  ADMIN: "adminApp",
+  AGENT: "agentApp",
+  CUSTOMER: "customerApp",
+  CLIENT: "clientApp"
+};
+
+const APP_PLATFORM_TYPES = {
+  APP: "app",
+  WEB: "web",
+  DEFAULT: "default"
+};
+
+const REFRESH_TOKEN_TYPE = {
+  app: "refreshToken",
+  web: "refreshTokenWeb",
+  default: "refreshToken"
+};
 
 function Handler(params = {}) {
   const L = params.loggingFactory.getLogger();
   const T = params.loggingFactory.getTracer();
   const packageName = params.packageName || "app-handshake";
 
-  const { bcryptor, oauthApi, errorManager, sandboxRegistry, schemaManager } = params;
+  const { bcryptor, oauthApi, errorManager, sandboxRegistry, schemaManager, eventor } = params;
 
   const config = lodash.get(params, ["sandboxConfig"], {});
   config.otpExpiredIn = config.otpExpiredIn || 15 * 60;
@@ -54,7 +68,7 @@ function Handler(params = {}) {
 
   const ctx = {
     L, T, packageName, config, schemaManager, serviceSelector,
-    errorBuilder, oauthApi, bcryptor
+    errorBuilder, oauthApi, bcryptor, eventor
   };
 
   function attachServices(packet) {
@@ -67,15 +81,15 @@ function Handler(params = {}) {
 
   this.register = function(packet, options) {
     return validateAppType(injectOptions(packet, options)).then(function(packet) {
-      const { appType, language } = packet;
+      const { appType, language = "vi" } = packet;
       switch (appType) {
-        case APPTYPE_ADMIN:
+        case APP_TYPES.ADMIN:
           return registerAdminAccount(packet);
-        case APPTYPE_AGENT:
+        case APP_TYPES.AGENT:
           return registerAgentAccount(packet);
-        case APPTYPE_CLIENT:
+        case APP_TYPES.CLIENT:
           return registerClientAccount(packet);
-        case APPTYPE_CUSTOMER:
+        case APP_TYPES.CUSTOMER:
           return registerCustomerAccount(packet);
         default:
           return Promise.reject(errorBuilder.newError("MethodUnsupportedForAppType", {
@@ -174,7 +188,8 @@ Handler.referenceHash = {
   oauthApi: "oauthApi",
   errorManager: "app-errorlist/manager",
   sandboxRegistry: "devebot/sandboxRegistry",
-  schemaManager: "app-datastore/schemaManager"
+  schemaManager: "app-datastore/schemaManager",
+  eventor: "eventor"
 };
 
 module.exports = Handler;
@@ -431,7 +446,7 @@ function validateCustomer(packet = {}) {
 
 function generateOTP(packet = {}) {
   const { T, L } = packet;
-  const { schemaManager, errorBuilder, config, appType, language, user, device } = packet;
+  const { schemaManager, errorBuilder, config, appType, appPlatformType, language, user, device } = packet;
   return Promise.resolve().then(function() {
     return getModelMethodPromise(schemaManager, "VerificationModel", "findOne");
   })
@@ -440,6 +455,9 @@ function generateOTP(packet = {}) {
         appType: appType,
         phoneNumber: user[appType].phoneNumber
       };
+      if (appType === APP_TYPES.AGENT && appPlatformType) {
+        conditions.appPlatformType = appPlatformType;
+      }
       const opts = {
         sort: { expiredTime: -1 }
       };
@@ -474,6 +492,7 @@ function generateOTP(packet = {}) {
             user: user._id,
             device: device._id,
             appType: appType,
+            appPlatformType: appPlatformType,
             phoneNumber: user[appType].phoneNumber
           };
           return matchFixedOTP(packet, obj.phoneNumber).then(function(fixedOTP) {
@@ -538,8 +557,8 @@ function registerEnd(packet = {}) {
 }
 
 function verifyOTP(packet = {}) {
-  const { schemaManager, errorBuilder, oauthApi, appType, language, data } = packet;
-  if (appType !== APPTYPE_AGENT && appType != APPTYPE_CUSTOMER) {
+  const { eventor, schemaManager, errorBuilder, oauthApi, appType, language, data } = packet;
+  if (appType !== APP_TYPES.AGENT && appType != APP_TYPES.CUSTOMER) {
     return Promise.reject(errorBuilder.newError("MethodUnsupportedForAppType", {
       payload: {
         appType: appType,
@@ -624,32 +643,46 @@ function verifyOTP(packet = {}) {
             }));
           }
           user[verification.appType].verified = true;
-          user[verification.appType].refreshToken = genKey();
+          // Support refreshToken for advisor on web platform. [branch][agentapp-appplatform]
+          if (appType === APP_TYPES.AGENT) {
+            user[verification.appType][REFRESH_TOKEN_TYPE[verification.appPlatformType]] = genKey();
+          } else {
+            user[verification.appType].refreshToken = genKey();
+          }
           return [user.save(), verification];
         });
     })
     .spread(function(user, verification) {
+      const accessToken = oauthApi.createAppAccessToken({
+        user,
+        constraints: lodash.merge(lodash.pick(verification, [
+          "appType", "expiredIn", "expiredTime", "phoneNumber"
+        ]), { email: user[verification.appType].email, permissionGroups: user[verification.appType].permissionGroups })
+      });
       if (user && lodash.isFunction(user.toJSON)) {
         user = user.toJSON();
       }
       const auth = {
         token_type: "Bearer",
-        access_token: oauthApi.createAppAccessToken({
-          user,
-          constraints: lodash.merge(lodash.pick(verification, [
-            "appType", "expiredIn", "expiredTime", "phoneNumber"
-          ]), { email: user[verification.appType].email, permissionGroups: user[verification.appType].permissionGroups })
-        }),
-        refresh_token: user[verification.appType].refreshToken,
+        access_token: accessToken,
+        refresh_token: user[verification.appType][REFRESH_TOKEN_TYPE[verification.appPlatformType]],
         expires_in: verification.expiredIn,
         expired_time: verification.expiredTime,
       };
+      // Push to EventBeat
+      eventor.loginFirstOTPSuccess({
+        appType: verification.appType,
+        appPlatformType: verification.appPlatformType,
+        phoneNumber: verification.phoneNumber,
+        userId: verification.user,
+        accessToken: accessToken
+      });
       return lodash.assign(packet, { data: { auth, user } });
     });
 }
 
 function refreshToken(packet = {}) {
-  const { schemaManager, errorBuilder, oauthApi, config, appType, language, data } = packet;
+  const { schemaManager, errorBuilder, oauthApi, config, appType, appPlatformType, language, data } = packet;
   const { revisions } = config;
   // search user[appType].refreshToken
   return Promise.resolve()
@@ -658,7 +691,15 @@ function refreshToken(packet = {}) {
     })
     .then(function(method) {
       const conditions = {};
-      conditions[[appType, "refreshToken"].join(".")] = data.refreshToken;
+      if (appType === APP_TYPES.AGENT && appPlatformType === APP_PLATFORM_TYPES.WEB) {
+        if (data && data.refreshToken) {
+          conditions[[appType, "refreshToken"].join(".")] = data.refreshToken;
+        } else if (data && data.refreshTokenWeb) {
+          conditions[[appType, "refreshTokenWeb"].join(".")] = data.refreshTokenWeb;
+        }
+      } else {
+        conditions[[appType, "refreshToken"].join(".")] = data.refreshToken;
+      }
       const opts = {};
       return method(conditions, null, opts);
     })
@@ -673,27 +714,29 @@ function refreshToken(packet = {}) {
       const expiredIn = config.tokenExpiredIn;
       const expiredTime = now.add(config.tokenExpiredIn, "seconds");
       let constraints = { appType, expiredIn, expiredTime };
-      if (appType === APPTYPE_ADMIN) {
+      let refreshToken = user[appType].refreshToken;
+      if (appType === APP_TYPES.ADMIN) {
         constraints = lodash.assign(constraints, {
           email: user[appType].email,
           username: user[appType].username,
           permissions: user[appType].permissions || [],
           permissionGroups: user[appType].permissionGroups || []
         });
-      } else if (appType === APPTYPE_CLIENT) {
+      } else if (appType === APP_TYPES.CLIENT) {
         constraints = lodash.assign(constraints, {
           email: user[appType].email,
           tokenKey: user[appType].username,
           permissions: user[appType].permissions || []
         });
-      } else if (appType === APPTYPE_AGENT) {
+      } else if (appType === APP_TYPES.AGENT) {
+        refreshToken = user[appType][REFRESH_TOKEN_TYPE[appPlatformType]];
         constraints = lodash.assign(constraints, {
           email: user[appType].email,
           phoneNumber: user[appType].phoneNumber,
           permissions: user[appType].permissions,
           permissionGroups: user[appType].permissionGroups,
         });
-      } else if (appType === APPTYPE_CUSTOMER) {
+      } else if (appType === APP_TYPES.CUSTOMER) {
         constraints = lodash.assign(constraints, {
           phoneNumber: user[appType].phoneNumber,
           email: user[appType].email,
@@ -705,7 +748,7 @@ function refreshToken(packet = {}) {
       const auth = {
         token_type: "Bearer",
         access_token: oauthApi.createAppAccessToken({ user, constraints }),
-        refresh_token: user[appType].refreshToken,
+        refresh_token: refreshToken,
         expires_in: expiredIn,
         expired_time: expiredTime,
         email: lodash.get(user[appType], "email"),
@@ -725,20 +768,20 @@ function filterUserInfo(packet = {}) {
     userId: user._id,
   }, lodash.pick(user, ["firstName", "lastName", "email", "activated", "deleted", "tags"]));
 
-  if (appType === APPTYPE_ADMIN) {
+  if (appType === APP_TYPES.ADMIN) {
     data = lodash.assign(data, lodash.pick(lodash.get(user, appType), [
       "holderId", "username", "permissions", "permissionGroups"
     ]));
-  } else if (appType === APPTYPE_CLIENT) {
+  } else if (appType === APP_TYPES.CLIENT) {
     data = lodash.assign(
       data,
       lodash.pick(lodash.get(user, appType), ["holderId", "tokenKey", "email", "permissions"])
     );
-  } else if (appType === APPTYPE_AGENT) {
+  } else if (appType === APP_TYPES.AGENT) {
     data = lodash.assign(data, lodash.pick(lodash.get(user, appType), [
       "holderId", "phoneNumber"
     ]));
-  } else if (appType === APPTYPE_CUSTOMER) {
+  } else if (appType === APP_TYPES.CUSTOMER) {
     data = lodash.assign(data, lodash.pick(lodash.get(user, appType), [
       "holderId", "phoneNumber"
     ]));
@@ -751,7 +794,7 @@ function updateUser(packet = {}) {
 
   let p = getModelMethodPromise(schemaManager, "UserModel", "findOne");
 
-  if (appType === APPTYPE_ADMIN) {
+  if (appType === APP_TYPES.ADMIN) {
     if (!data["holderId"] && !data["username"]) {
       return Promise.reject(errorBuilder.newError("AdminAppHolderIdOrUsernameExpected",
         { payload: lodash.pick(data, ["holderId", "username"]), language }));
@@ -805,7 +848,7 @@ function updateUser(packet = {}) {
           }
         });
     });
-  } else if (appType === APPTYPE_AGENT) {
+  } else if (appType === APP_TYPES.AGENT) {
     if (!data["holderId"] && !data["phoneNumber"]) {
       return Promise.reject(errorBuilder.newError("AgentAppHolderIdOrPhoneNumberExpected",
         { payload: lodash.pick(data, ["holderId", "phoneNumber"]), language }));
@@ -864,7 +907,7 @@ function updateUser(packet = {}) {
           }
         });
     });
-  } else if (appType === APPTYPE_CUSTOMER) {
+  } else if (appType === APP_TYPES.CUSTOMER) {
     if (!data["holderId"] && !data["phoneNumber"]) {
       return Promise.reject(errorBuilder.newError("InsuranceCustomerAppHolderIdOrPhoneNumberExpected",
         { payload: lodash.pick(data, ["holderId", "phoneNumber"]), language }));
@@ -923,7 +966,7 @@ function updateUser(packet = {}) {
           }
         });
     });
-  } else if (appType === APPTYPE_CLIENT) {
+  } else if (appType === APP_TYPES.CLIENT) {
     if (!data["holderId"] && !data["tokenKey"]) {
       return Promise.reject(
         errorBuilder.newError("ClientAppHolderIdOrTokenKeyExpected", {
@@ -1001,7 +1044,7 @@ function getVerification(packet = {}) {
   const { appType, data } = packet;
 
   let p = Promise.resolve();
-  if (appType === APPTYPE_AGENT || appType === APPTYPE_CUSTOMER) {
+  if (appType === APP_TYPES.AGENT || appType === APP_TYPES.CUSTOMER) {
     if (data.holderId) {
       p = _findUserByHolderId(packet);
     } else if (data.phoneNumber) {
@@ -1029,7 +1072,7 @@ function resetVerification(packet = {}) {
 
   let p = getModelMethodPromise(schemaManager, "VerificationModel", "findOne");
 
-  if (appType === APPTYPE_AGENT || appType === APPTYPE_CUSTOMER) {
+  if (appType === APP_TYPES.AGENT || appType === APP_TYPES.CUSTOMER) {
     if (!lodash.isString(data.phoneNumber) || lodash.isEmpty(data.phoneNumber)) {
       return Promise.reject(errorBuilder.newError("PhoneNumberMustBeNotNull", { language }));
     }
@@ -1081,7 +1124,7 @@ function assignUserData(appType, user = {}, data = {}, bcryptor) {
     user[appType].permissionGroups = data.permissionGroups;
   }
 
-  if (appType === APPTYPE_ADMIN) {
+  if (appType === APP_TYPES.ADMIN) {
     if (lodash.isString(data.username) && data.username != user[appType].username) {
       // change the phoneNumber -> verified <- false, delete refreshToken
       user[appType].username = data.username;
@@ -1091,7 +1134,16 @@ function assignUserData(appType, user = {}, data = {}, bcryptor) {
       user[appType].password = bcryptor.hashSync(data.password);
       user[appType].refreshToken = undefined;
     }
-  } else if (appType === APPTYPE_AGENT) {
+  } else if (appType === APP_TYPES.AGENT) {
+    if (lodash.isString(data.phoneNumber) && data.phoneNumber != user[appType].phoneNumber) {
+      // change the phoneNumber -> verified <- false, delete refreshToken
+      user[appType].phone = data.phone;
+      user[appType].phoneNumber = data.phoneNumber;
+      user[appType].refreshToken = undefined;
+      user[appType].refreshTokenWeb = undefined;
+      user[appType].verified = false;
+    }
+  } else if (appType === APP_TYPES.CUSTOMER) {
     if (lodash.isString(data.phoneNumber) && data.phoneNumber != user[appType].phoneNumber) {
       // change the phoneNumber -> verified <- false, delete refreshToken
       user[appType].phone = data.phone;
@@ -1099,15 +1151,7 @@ function assignUserData(appType, user = {}, data = {}, bcryptor) {
       user[appType].refreshToken = undefined;
       user[appType].verified = false;
     }
-  } else if (appType === APPTYPE_CUSTOMER) {
-    if (lodash.isString(data.phoneNumber) && data.phoneNumber != user[appType].phoneNumber) {
-      // change the phoneNumber -> verified <- false, delete refreshToken
-      user[appType].phone = data.phone;
-      user[appType].phoneNumber = data.phoneNumber;
-      user[appType].refreshToken = undefined;
-      user[appType].verified = false;
-    }
-  } else if (appType == APPTYPE_CLIENT) {
+  } else if (appType == APP_TYPES.CLIENT) {
     if (lodash.isString(data.tokenKey) && data.tokenKey != user[appType].tokenKey) {
       user[appType].tokenKey = data.tokenKey;
       user[appType].refreshToken = undefined;
@@ -1127,34 +1171,30 @@ function assignUserData(appType, user = {}, data = {}, bcryptor) {
 function revokeToken(packet = {}) {
   const { schemaManager, appType, data } = packet;
   let p = getModelMethodPromise(schemaManager, "UserModel", "findOne");
-  if (appType === APPTYPE_ADMIN) {
+  if (appType === APP_TYPES.ADMIN) {
     p = p.then(function(method) {
       const conditions = {};
       conditions[[appType, "username"].join(".")] = data.username;
       return method(conditions, null, {});
     });
-  } else if (appType === APPTYPE_CLIENT) {
+  } else if (appType === APP_TYPES.CLIENT) {
     p = p.then(function(method) {
       const conditions = {};
       conditions[[appType, "tokenKey"].join(".")] = data.tokenKey;
       return method(conditions, null, {});
     });
-  } else if (appType === APPTYPE_AGENT) {
-    p = p.then(function(method) {
-      const conditions = {};
-      conditions[[appType, "phoneNumber"].join(".")] = data.phoneNumber;
-      return method(conditions, null, {});
-    });
-  } else if (appType === APPTYPE_CUSTOMER) {
+  } else if ([APP_TYPES.AGENT, APP_TYPES.CUSTOME].indexOf(appType) > 0) {
     p = p.then(function(method) {
       const conditions = {};
       conditions[[appType, "phoneNumber"].join(".")] = data.phoneNumber;
       return method(conditions, null, {});
     });
   }
+
   p = p.then(function(user) {
     if (user) {
       user[appType].refreshToken = undefined;
+      user[appType].refreshTokenWeb = undefined;
       return user.save();
     }
     return Promise.resolve({});
@@ -1168,23 +1208,36 @@ function injectOptions(packet = {}, options) {
 
 function sanitizeAppType(appType) {
   if (["adminApp", "admin", "cc", "operation"].indexOf(appType) >= 0) {
-    return APPTYPE_ADMIN;
+    return APP_TYPES.ADMIN;
   } else if (["clientApp", "partyApp", "partnerApp", "client", "party", "partner"].indexOf(appType) >= 0) {
-    return APPTYPE_CLIENT;
-  } else if (["agentApp", "agent", "agent-app", "sales"].indexOf(appType) >= 0) {
-    return APPTYPE_AGENT;
+    return APP_TYPES.CLIENT;
+  } else if (["agentApp", "agent", "agent-app", "sales", "advisor"].indexOf(appType) >= 0) {
+    return APP_TYPES.AGENT;
   } else if (["customerApp", "customer", "customer-app"].indexOf(appType) >= 0) {
-    return APPTYPE_CUSTOMER;
+    return APP_TYPES.CUSTOMER;
+  }
+  return null;
+}
+
+function sanitizeAppPlatformType(appPlatformType) {
+  if (["android", "ios", "iOS", "Android", "app"].indexOf(appPlatformType) >= 0) {
+    return APP_PLATFORM_TYPES.APP;
+  } else if (["web", "Web", "WEB"].indexOf(appPlatformType) >= 0) {
+    return APP_PLATFORM_TYPES.WEB;
+  } else if (["unknown", "default"].indexOf(appPlatformType) >= 0) {
+    return APP_PLATFORM_TYPES.DEFAULT;
   }
   return null;
 }
 
 function validateAppType(packet) {
   const appType = sanitizeAppType(packet.appType);
+  const appPlatformType = sanitizeAppPlatformType(packet.appPlatformType);
   if (appType == null) {
     return Promise.reject(new Error(util.format("Unsupported appType [%s]", packet.appType)));
   }
   packet.appType = appType;
+  packet.appPlatformType = appPlatformType;
   return Promise.resolve(packet);
 }
 
