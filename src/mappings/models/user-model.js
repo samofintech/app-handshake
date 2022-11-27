@@ -33,11 +33,18 @@ module.exports = {
         countryCode: { type: String },
         number: { type: String }
       },
+      // 0.3.16
+      email: { type: String },
+      username: { type: String },
+      password: { type: String },
+      permissions: [String],
+      permissionGroups: [String],
+      // End 0.3.16
       holderId: { type: Schema.Types.ObjectId },
       verified: { type: Boolean, default: false },
       refreshToken: { type: String }
     },
-    insuranceCustomerApp: {
+    customerApp: {
       device: { type: Schema.Types.ObjectId, ref: "DeviceModel" },
       phoneNumber: { type: String },
       phone: {
@@ -45,6 +52,13 @@ module.exports = {
         countryCode: { type: String },
         number: { type: String }
       },
+      // 0.3.16
+      email: { type: String },
+      username: { type: String },
+      password: { type: String },
+      permissions: [String],
+      permissionGroups: [String],
+      // End 0.3.16
       holderId: { type: Schema.Types.ObjectId },
       verified: { type: Boolean, default: false },
       refreshToken: { type: String }

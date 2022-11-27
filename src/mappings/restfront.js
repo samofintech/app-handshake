@@ -15,7 +15,7 @@ const apiMaps = [
         return {
           appType: extractAppType(req),
           language: extractLangCode(req),
-          schemaVersion: reqOpts.schemaVersion,
+          schemaVersion: reqOpts.schemaVersion || req.headers['x-schema-version'],
           data: req.body
         }
       },
