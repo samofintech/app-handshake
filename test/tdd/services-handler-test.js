@@ -1,17 +1,17 @@
 'use strict';
 
-var devebot = require('devebot');
-var lodash = devebot.require('lodash');
-var path = require('path');
-var assert = require('chai').assert;
-var sinon = require('sinon');
-var dtk = require('../index');
+const devebot = require('devebot');
+const lodash = devebot.require('lodash');
+const path = require('path');
+const assert = require('chai').assert;
+const sinon = require('sinon');
+const dtk = require('../index');
 
 describe('services:handler', function() {
   describe('ServiceSelector', function() {
-    var Handler, ServiceSelector;
-    var serviceResolver = 'app-restfetch';
-    var sandboxRegistry = { lookupService: sinon.stub() };
+    let Handler, ServiceSelector;
+    const serviceResolver = 'app-restfetch';
+    const sandboxRegistry = { lookupService: sinon.stub() };
 
     beforeEach(function() {
       Handler = dtk.acquire('handler');

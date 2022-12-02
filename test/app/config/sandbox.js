@@ -1,8 +1,8 @@
 'use strict';
 
-var contextPath = '/handshake';
-var Devebot = require('devebot');
-var chores = Devebot.require('chores');
+const contextPath = '/handshake';
+const Devebot = require('devebot');
+const chores = Devebot.require('chores');
 
 module.exports = {
   application: {
