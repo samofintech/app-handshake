@@ -1,6 +1,6 @@
 "use strict";
 const uuid = require("uuid");
-const moment = require("moment");
+const { moment } = require("tokenlib");
 const fetch = require("node-fetch");
 
 const EVENT_MAPPING = {

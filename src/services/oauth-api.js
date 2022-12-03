@@ -2,7 +2,7 @@
 
 const Devebot = require('devebot');
 const lodash = Devebot.require('lodash');
-const jwt = require('jsonwebtoken');
+const { jsonwebtoken: jwt } = require('tokenlib');
 
 function OauthApi (params = {}) {
   const L = params.loggingFactory.getLogger();

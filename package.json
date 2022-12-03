@@ -51,8 +51,7 @@
     "bcryptjs": "2.4.3",
     "devebot": "^0.4.0",
     "google-libphonenumber": "3.2.13",
-    "jsonwebtoken": "8.5.1",
-    "moment": "2.29.4"
+    "tokenlib": "^0.1.0"
   },
   "devDependencies": {
     "@babel/cli": "^7.19.3",
