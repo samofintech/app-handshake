@@ -7,7 +7,7 @@ const lodash = Devebot.require("lodash");
 const logolite = Devebot.require("logolite");
 const format = logolite.LogFormat;
 const genKey = logolite.LogConfig.getLogID;
-const { moment } = require("tokenlib");
+const { momentHelper } = require("tokenlib");
 const util = require("util");
 const glpn = require("google-libphonenumber");
 const phoneUtil = glpn.PhoneNumberUtil.getInstance();
@@ -244,9 +244,10 @@ function loginAdminApp(packet = {}) {
       if (user && lodash.isFunction(user.toJSON)) {
         user = user.toJSON();
       }
-      const now = moment();
       const expiredIn = config.otpExpiredIn;
-      const expiredTime = now.add(config.otpExpiredIn, "seconds").toDate();
+      const expiredTime = momentHelper.getExpiredTime(expiredIn);
+      // const now = moment();
+      // const expiredTime = now.add(config.otpExpiredIn, "seconds").toDate();
       const auth = {
         token_type: "Bearer",
         access_token: oauthApi.createAppAccessToken({
@@ -328,9 +329,10 @@ function loginClientApp(packet = {}) {
       if (user && lodash.isFunction(user.toJSON)) {
         user = user.toJSON();
       }
-      const now = moment();
       const expiredIn = config.otpExpiredIn;
-      const expiredTime = now.add(config.otpExpiredIn, "seconds").toDate();
+      const expiredTime = momentHelper.getExpiredTime(expiredIn);
+      // const now = moment();
+      // const expiredTime = now.add(config.otpExpiredIn, "seconds").toDate();
       const auth = {
         token_type: "Bearer",
         access_token: oauthApi.createAppAccessToken({
@@ -464,12 +466,13 @@ function generateOTP(packet = {}) {
       return method(conditions, null, opts);
     })
     .then(function(verification) {
-      const now = moment();
-      const nowPlus = now.add(config.otpTypingTime, "seconds");
       if (verification) {
         if (verification.expiredTime) {
-          const oldExpiredTime = moment(verification.expiredTime);
-          if (nowPlus.isAfter(oldExpiredTime)) {
+          // const now = moment();
+          // const nowPlus = now.add(config.otpTypingTime, "seconds");
+          // const oldExpiredTime = moment(verification.expiredTime);
+          // if (nowPlus.isAfter(oldExpiredTime)) {
+          if (momentHelper.checkTimeHasExpired(verification.expiredTime, config.otpTypingTime)) {
             // there is no time to press the received token, create another verification
             verification = null;
           } else {
@@ -488,7 +491,8 @@ function generateOTP(packet = {}) {
             key: genKey(),
             otp: otp.generate(config.otpSize, otpDefaultOpts),
             expiredIn: config.otpExpiredIn,
-            expiredTime: now.add(config.otpExpiredIn, "seconds").toDate(),
+            // expiredTime: now.add(config.otpExpiredIn, "seconds").toDate(),
+            expiredTime: momentHelper.getExpiredTime(config.otpExpiredIn),
             user: user._id,
             device: device._id,
             appType: appType,
@@ -592,9 +596,11 @@ function verifyOTP(packet = {}) {
           }, language
         }));
       }
-      const now = moment();
-      const expiredTime = moment(verification.expiredTime);
-      if (now.isAfter(expiredTime)) {
+      // const now = moment();
+      // const expiredTime = moment(verification.expiredTime);
+      // if (now.isAfter(expiredTime)) {
+      if (momentHelper.checkTimeHasExpired(verification.expiredTime)) {
+        const expiredTime = momentHelper.getCurrentTime(verification.expiredTime);
         return Promise.reject(errorBuilder.newError("OTPHasExpired", {
           payload: {
             key: data.key,
@@ -710,9 +716,10 @@ function refreshToken(packet = {}) {
       if (user[appType].verified == false) {
         return Promise.reject(errorBuilder.newError("UserIsNotVerified", { language }));
       }
-      const now = moment();
       const expiredIn = config.tokenExpiredIn;
-      const expiredTime = now.add(config.tokenExpiredIn, "seconds");
+      const expiredTime = momentHelper.getExpiredTime(expiredIn);
+      // const now = moment();
+      // const expiredTime = now.add(config.tokenExpiredIn, "seconds");
       let constraints = { appType, expiredIn, expiredTime };
       let refreshToken = user[appType].refreshToken;
       if (appType === APP_TYPES.ADMIN) {
@@ -1090,8 +1097,9 @@ function resetVerification(packet = {}) {
 
   p = p.then(function(verification) {
     if (verification) {
-      const now = moment().subtract(config.otpTypingTime, "seconds");
-      verification.expiredTime = now;
+      // const now = moment().subtract(config.otpTypingTime, "seconds");
+      // verification.expiredTime = now;
+      verification.expiredTime = momentHelper.getTimeBeforeCurrent(config.otpTypingTime);
       return verification.save();
     }
     return verification;
