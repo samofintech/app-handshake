@@ -3,19 +3,22 @@
 const devebot = require('devebot');
 const lodash = devebot.require('lodash');
 const path = require('path');
-const assert = require('chai').assert;
-const sinon = require('sinon');
-const dtk = require('../index');
+const liberica = require("liberica");
+const assert = liberica.assert;
+const mockit = liberica.mockit;
+const sinon = liberica.sinon;
+
+const moduleHome = path.join(__dirname, "../../lib/services/");
 
 describe('services:handler', function() {
-  describe('ServiceSelector', function() {
-    let Handler, ServiceSelector;
-    const serviceResolver = 'app-restfetch';
+  describe('parsePhoneNumber', function() {
+    let Handler, parsePhoneNumber;
+    const serviceResolver = 'app-handshake';
     const sandboxRegistry = { lookupService: sinon.stub() };
 
     beforeEach(function() {
-      Handler = dtk.acquire('handler');
-      ServiceSelector = dtk.get(Handler, 'ServiceSelector');
+      Handler = mockit.acquire('handler', { moduleHome });
+      parsePhoneNumber = mockit.get(Handler, 'parsePhoneNumber');
       sandboxRegistry.lookupService.resetBehavior();
     });
 
