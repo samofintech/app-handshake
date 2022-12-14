@@ -6,7 +6,6 @@ const chores = Devebot.require("chores");
 const lodash = Devebot.require("lodash");
 const logolite = Devebot.require("logolite");
 const format = logolite.LogFormat;
-const genKey = logolite.LogConfig.getLogID;
 const moment = require("moment");
 const util = require("util");
 const glpn = require("google-libphonenumber");
@@ -14,6 +13,10 @@ const phoneUtil = glpn.PhoneNumberUtil.getInstance();
 const otp = require("../utils/otp-generator");
 const otpDefaultOpts = { alphabets: false, upperCase: false, specialChars: false };
 const mongoose = require("app-datastore").require("mongoose");
+
+const genKey = function() {
+  return logolite.LogConfig.getLogID();
+};
 
 const APP_TYPES = {
   ADMIN: "adminApp",
