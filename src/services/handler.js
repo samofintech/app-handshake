@@ -527,7 +527,7 @@ function generateOTP(packet = {}) {
 
 function sendOTP(packet = {}) {
   const { T, L } = packet;
-  const { packageName, config, serviceSelector, verification, skipped, options } = packet;
+  const { packageName, config, serviceSelector, verification, skipped, options, appType, appPlatformType } = packet;
   if (skipped === true) {
     return Promise.resolve(packet);
   }
@@ -540,6 +540,8 @@ function sendOTP(packet = {}) {
       tmpl: "An OTP has been created for phone: ${phoneNumber}"
     }));
     const msgInfo = {
+      appType,
+      appPlatformType,
       phoneNumber: verification.phoneNumber,
       otp: verification.otp,
       text: format(config.smsTemplate, { otp: verification.otp }),
