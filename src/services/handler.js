@@ -34,7 +34,7 @@ const REFRESH_TOKEN_TYPE = {
   default: "refreshToken"
 };
 
-function Handler(params = {}) {
+function Handler (params = {}) {
   const L = params.loggingFactory.getLogger();
   const T = params.loggingFactory.getTracer();
   const packageName = params.packageName || "app-handshake";
@@ -71,11 +71,11 @@ function Handler(params = {}) {
     errorBuilder, oauthApi, bcryptor, eventor
   };
 
-  function attachServices(packet) {
+  function attachServices (packet) {
     return lodash.assign(packet, ctx);
   }
 
-  function detachServices(packet) {
+  function detachServices (packet) {
     return lodash.omit(packet, lodash.keys(ctx));
   }
 
@@ -103,21 +103,21 @@ function Handler(params = {}) {
     });
   };
 
-  function registerAdminAccount(packet) {
+  function registerAdminAccount (packet) {
     return Promise.resolve(packet)
       .then(attachServices)
       .then(loginAdminApp)
       .then(detachServices);
   }
 
-  function registerClientAccount(packet) {
+  function registerClientAccount (packet) {
     return Promise.resolve(packet)
       .then(attachServices)
       .then(loginClientApp)
       .then(detachServices);
   }
 
-  function registerAgentAccount(packet) {
+  function registerAgentAccount (packet) {
     return Promise.resolve(packet)
       .then(attachServices)
       .then(upsertDevice)
@@ -128,7 +128,7 @@ function Handler(params = {}) {
       .then(detachServices);
   }
 
-  function registerCustomerAccount(packet) {
+  function registerCustomerAccount (packet) {
     return Promise.resolve(packet)
       .then(attachServices)
       .then(upsertDevice)
@@ -181,7 +181,7 @@ function Handler(params = {}) {
       .then(resetVerification)
       .then(detachServices);
   };
-};
+}
 
 Handler.referenceHash = {
   bcryptor: "bcryptor",
@@ -194,7 +194,7 @@ Handler.referenceHash = {
 
 module.exports = Handler;
 
-function getModelMethodPromise(schemaManager, modelName, methodName) {
+function getModelMethodPromise (schemaManager, modelName, methodName) {
   const model = schemaManager.getModel(modelName);
   if (!model) {
     return Promise.reject(new Error(modelName + "_not_available"));
@@ -202,7 +202,7 @@ function getModelMethodPromise(schemaManager, modelName, methodName) {
   return Promise.resolve(Promise.promisify(model[methodName], { context: model }));
 }
 
-function loginAdminApp(packet = {}) {
+function loginAdminApp (packet = {}) {
   const { bcryptor, oauthApi, schemaManager, errorBuilder, config, appType, language, data } = packet;
   return Promise.resolve().then(function() {
     return getModelMethodPromise(schemaManager, "UserModel", "findOne");
@@ -268,7 +268,7 @@ function loginAdminApp(packet = {}) {
     });
 }
 
-function loginClientApp(packet = {}) {
+function loginClientApp (packet = {}) {
   const {
     bcryptor,
     oauthApi,
@@ -354,7 +354,7 @@ function loginClientApp(packet = {}) {
     });
 }
 
-function upsertDevice(packet = {}) {
+function upsertDevice (packet = {}) {
   const { schemaManager, data } = packet;
   return getModelMethodPromise(schemaManager, "DeviceModel", "findOneAndUpdate")
     .then(function(method) {
@@ -375,7 +375,7 @@ function upsertDevice(packet = {}) {
     });
 }
 
-function _findUserByHolderId({ schemaManager, config, appType, data, errorBuilder, language }) {
+function _findUserByHolderId ({ schemaManager, config, appType, data, errorBuilder, language }) {
   return Promise.resolve().then(function() {
     return getModelMethodPromise(schemaManager, "UserModel", "findOne");
   })
@@ -387,7 +387,7 @@ function _findUserByHolderId({ schemaManager, config, appType, data, errorBuilde
     });
 }
 
-function _findUserByPhoneNumber({ schemaManager, config, appType, data, errorBuilder, language }) {
+function _findUserByPhoneNumber ({ schemaManager, config, appType, data, errorBuilder, language }) {
   return Promise.resolve().then(function() {
     return getModelMethodPromise(schemaManager, "UserModel", "findOne");
   })
@@ -404,7 +404,7 @@ function _findUserByPhoneNumber({ schemaManager, config, appType, data, errorBui
     });
 }
 
-function validateUser(packet = {}) {
+function validateUser (packet = {}) {
   const { schemaManager, config, appType, data, device } = packet;
   return _findUserByPhoneNumber(packet)
     .then(function(user) {
@@ -432,7 +432,7 @@ function validateUser(packet = {}) {
     });
 }
 
-function validateCustomer(packet = {}) {
+function validateCustomer (packet = {}) {
   const { appType, device } = packet;
   return _findUserByPhoneNumber(packet)
     .then(function(user) {
@@ -446,7 +446,7 @@ function validateCustomer(packet = {}) {
     });
 }
 
-function generateOTP(packet = {}) {
+function generateOTP (packet = {}) {
   const { T, L } = packet;
   const { schemaManager, errorBuilder, config, appType, appPlatformType, language, user, device } = packet;
   return Promise.resolve().then(function() {
@@ -525,7 +525,7 @@ function generateOTP(packet = {}) {
     });
 }
 
-function sendOTP(packet = {}) {
+function sendOTP (packet = {}) {
   const { T, L } = packet;
   const { packageName, config, serviceSelector, verification, skipped, options } = packet;
   if (skipped === true) {
@@ -553,14 +553,14 @@ function sendOTP(packet = {}) {
   return Promise.resolve(packet);
 }
 
-function registerEnd(packet = {}) {
+function registerEnd (packet = {}) {
   const { config, verification } = packet;
   return {
     data: lodash.pick(verification, config.projection)
   };
 }
 
-function verifyOTP(packet = {}) {
+function verifyOTP (packet = {}) {
   const { eventor, schemaManager, errorBuilder, oauthApi, appType, language, data } = packet;
   if (appType !== APP_TYPES.AGENT && appType != APP_TYPES.CUSTOMER) {
     return Promise.reject(errorBuilder.newError("MethodUnsupportedForAppType", {
@@ -687,7 +687,7 @@ function verifyOTP(packet = {}) {
     });
 }
 
-function refreshToken(packet = {}) {
+function refreshToken (packet = {}) {
   const { schemaManager, errorBuilder, oauthApi, config, appType, appPlatformType, language, data } = packet;
   const { revisions } = config;
   // search user[appType].refreshToken
@@ -768,7 +768,7 @@ function refreshToken(packet = {}) {
     });
 }
 
-function filterUserInfo(packet = {}) {
+function filterUserInfo (packet = {}) {
   const { appType, user = {} } = packet;
 
   let data = lodash.assign({
@@ -796,7 +796,7 @@ function filterUserInfo(packet = {}) {
   return lodash.assign(packet, { data });
 }
 
-function updateUser(packet = {}) {
+function updateUser (packet = {}) {
   const { bcryptor, schemaManager, errorBuilder, config, appType, language, data = {} } = packet;
 
   let p = getModelMethodPromise(schemaManager, "UserModel", "findOne");
@@ -1047,7 +1047,7 @@ function updateUser(packet = {}) {
   return p;
 }
 
-function getVerification(packet = {}) {
+function getVerification (packet = {}) {
   const { appType, data } = packet;
 
   let p = Promise.resolve();
@@ -1074,7 +1074,7 @@ function getVerification(packet = {}) {
   return p;
 }
 
-function resetVerification(packet = {}) {
+function resetVerification (packet = {}) {
   const { schemaManager, errorBuilder, config, appType, language, data } = packet;
 
   let p = getModelMethodPromise(schemaManager, "VerificationModel", "findOne");
@@ -1116,7 +1116,7 @@ function resetVerification(packet = {}) {
 
 const MIRROR_USER_FIELDS = ["firstName", "lastName", "email", "activated", "deleted"];
 
-function assignUserData(appType, user = {}, data = {}, bcryptor) {
+function assignUserData (appType, user = {}, data = {}, bcryptor) {
   lodash.forEach(MIRROR_USER_FIELDS, function(field) {
     if (field in data) {
       user[field] = data[field];
@@ -1176,7 +1176,7 @@ function assignUserData(appType, user = {}, data = {}, bcryptor) {
   return user;
 }
 
-function revokeToken(packet = {}) {
+function revokeToken (packet = {}) {
   const { schemaManager, appType, data } = packet;
   let p = getModelMethodPromise(schemaManager, "UserModel", "findOne");
   if (appType === APP_TYPES.ADMIN) {
@@ -1210,11 +1210,11 @@ function revokeToken(packet = {}) {
   return p;
 }
 
-function injectOptions(packet = {}, options) {
+function injectOptions (packet = {}, options) {
   return Object.assign(packet, { options });
 }
 
-function sanitizeAppType(appType) {
+function sanitizeAppType (appType) {
   if (["adminApp", "admin", "cc", "operation"].indexOf(appType) >= 0) {
     return APP_TYPES.ADMIN;
   } else if (["clientApp", "partyApp", "partnerApp", "client", "party", "partner"].indexOf(appType) >= 0) {
@@ -1227,7 +1227,7 @@ function sanitizeAppType(appType) {
   return null;
 }
 
-function sanitizeAppPlatformType(appPlatformType) {
+function sanitizeAppPlatformType (appPlatformType) {
   if (["android", "ios", "iOS", "Android", "app"].indexOf(appPlatformType) >= 0) {
     return APP_PLATFORM_TYPES.APP;
   } else if (["web", "Web", "WEB"].indexOf(appPlatformType) >= 0) {
@@ -1238,7 +1238,7 @@ function sanitizeAppPlatformType(appPlatformType) {
   return null;
 }
 
-function validateAppType(packet) {
+function validateAppType (packet) {
   const appType = sanitizeAppType(packet.appType);
   const appPlatformType = sanitizeAppPlatformType(packet.appPlatformType);
   if (appType == null) {
@@ -1249,7 +1249,7 @@ function validateAppType(packet) {
   return Promise.resolve(packet);
 }
 
-function sanitizePhone(data = {}, config = {}, errorBuilder, language) {
+function sanitizePhone (data = {}, config = {}, errorBuilder, language) {
   config.defaultCountryCode = config.defaultCountryCode || "US";
   if (lodash.isEmpty(data.phoneNumber) && lodash.isEmpty(data.phone)) {
     return errorBuilder.newError("PhoneNumberMustBeNotNull", { language });
@@ -1283,7 +1283,7 @@ function sanitizePhone(data = {}, config = {}, errorBuilder, language) {
   return null;
 }
 
-function parsePhoneNumber(phoneString, defaultCountryCode) {
+function parsePhoneNumber (phoneString, defaultCountryCode) {
   const number = phoneUtil.parseAndKeepRawInput(phoneString, defaultCountryCode);
   return {
     country: phoneUtil.getRegionCodeForNumber(number),
@@ -1293,11 +1293,11 @@ function parsePhoneNumber(phoneString, defaultCountryCode) {
   };
 }
 
-function isValidPhoneNumber(phoneString, defaultCountryCode) {
+function isValidPhoneNumber (phoneString, defaultCountryCode) {
   return phoneUtil.isValidNumber(phoneUtil.parse(phoneString, defaultCountryCode));
 }
 
-function matchFixedOTP(packet = {}, phoneNumber) {
+function matchFixedOTP (packet = {}, phoneNumber) {
   const { config, schemaManager } = packet;
   if (lodash.isArray(config.presetOTPs) && !lodash.isEmpty(config.presetOTPs)) {
     for (const i in config.presetOTPs) {
@@ -1328,11 +1328,11 @@ function matchFixedOTP(packet = {}, phoneNumber) {
   return Promise.resolve(null);
 }
 
-function _extractUserQuery(appType, data) {
+function _extractUserQuery (appType, data) {
   return lodash.assign({ appType }, lodash.pick(data, ["holderId", "phoneNumber", "username"]));
 }
 
-function _checkUser({ appType, errorBuilder, language, data }, user) {
+function _checkUser ({ appType, errorBuilder, language, data }, user) {
   if (!user) {
     return Promise.reject(errorBuilder.newError("UserNotFound", {
       payload: _extractUserQuery(appType, data),

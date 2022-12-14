@@ -1,6 +1,6 @@
-'use strict';
+"use strict";
 
-const mongoose = require('app-datastore').require('mongoose');
+const mongoose = require("app-datastore").require("mongoose");
 const Schema = mongoose.Schema;
 
 /**
@@ -8,7 +8,7 @@ const Schema = mongoose.Schema;
  * Device Verification Model
  */
 module.exports = {
-  name: 'VerificationModel',
+  name: "VerificationModel",
   descriptor: {
     key: { type: String },
     otp: { type: String },
@@ -28,6 +28,6 @@ module.exports = {
     updatedAt: { type: Date, default: Date.now }
   },
   options: {
-    collection: 'verifications'
+    collection: "verifications"
   }
 };
