@@ -18,15 +18,17 @@
     "manifest.js"
   ],
   "scripts": {
-    "bootstrap": "npm install && cd test && npm install",
-    "clean-modules": "rm -rf ./node_modules && rm ./package-lock.json",
-    "build": "babel ./src -d ./lib",
     "clean": "rm -rf ./lib",
-    "prepublishOnly": "npm run clean && cross-env NODE_ENV=${DEVEBOT_NODE_ENV:-production} npm run build",
-    "pretest": "npm run clean && cross-env NODE_ENV=${DEVEBOT_NODE_ENV:-test} npm run build",
-    "test": "cd test && npm exec -- mocha --recursive ./**/*-test.js",
-    "verify": "npm run prepublish && npm run test",
-    "eslint": "npm exec -- eslint ./src/ --quiet"
+    "clean-modules": "rm -rf ./node_modules && rm ./package-lock.json",
+    "bootstrap": "npm install --ignore-scripts; npm --prefix=test install --ignore-scripts",
+    "build": "npm exec -- babel ./src -d ./lib",
+    "check": "npm exec -- eslint ./src index.js",
+    "check-silent": "npm exec -- eslint --quiet ./src index.js",
+    "pretest": "npm run check-silent && npm run clean && NODE_ENV=${DEVEBOT_NODE_ENV:-test} npm run build",
+    "testOnly": "npm --prefix=test exec -- mocha --recursive ./**/tdd/*-test.js",
+    "test": "npm run testOnly",
+    "prepublishOnly": "npm run check-silent && npm run clean && NODE_ENV=${DEVEBOT_NODE_ENV:-production} npm run build",
+    "verify": "npm run prepublishOnly && npm run testOnly"
   },
   "keywords": [
     "devebot",

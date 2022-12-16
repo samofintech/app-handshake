@@ -29,6 +29,7 @@ module.exports = Bcryptor;
 
 function useNative (bcrypt) {
   try {
+    /* eslint-disable node/no-missing-require */
     bcrypt = require("bcrypt");
   } catch (err) {
     // native bcrypt not found

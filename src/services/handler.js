@@ -450,7 +450,6 @@ function validateCustomer (packet = {}) {
 }
 
 function generateOTP (packet = {}) {
-  const { T, L } = packet;
   const { schemaManager, errorBuilder, config, appType, appPlatformType, language, user, device } = packet;
   return Promise.resolve().then(function() {
     return getModelMethodPromise(schemaManager, "VerificationModel", "findOne");
