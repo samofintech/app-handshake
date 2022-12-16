@@ -1,6 +1,6 @@
 {
   "name": "app-handshake",
-  "version": "0.3.38",
+  "version": "0.3.39",
   "description": "Devebot oidc authentication layerware",
   "license": "MIT",
   "homepage": "https://github.com/apporo/app-handshake.git",
@@ -18,9 +18,10 @@
     "manifest.js"
   ],
   "scripts": {
-    "build": "babel ./src -d ./lib",
     "clean": "rm -rf ./lib",
-    "prepublish": "npm run clean && cross-env NODE_ENV=production npm run build",
+    "clean-modules": "rm -rf ./node_modules && rm ./package-lock.json",
+    "build": "babel ./src -d ./lib",
+    "prepublishOnly": "npm run clean && cross-env NODE_ENV=production npm run build",
     "pretest": "npm run clean && cross-env NODE_ENV=test npm run build",
     "test": "mocha ./test/{bdd,tdd}/*test.js",
     "verify": "npm run prepublish && mocha ./test/{bdd,tdd}/*test.js",

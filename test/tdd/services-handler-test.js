@@ -7,15 +7,15 @@ var assert = require('chai').assert;
 var sinon = require('sinon');
 var dtk = require('../index');
 
+const moduleHome = path.join(__dirname, "../../lib/services");
+
 describe('services:handler', function() {
   describe('ServiceSelector', function() {
     var Handler, ServiceSelector;
-    var serviceResolver = 'app-restfetch';
     var sandboxRegistry = { lookupService: sinon.stub() };
 
     beforeEach(function() {
-      Handler = dtk.acquire('handler');
-      ServiceSelector = dtk.get(Handler, 'ServiceSelector');
+      Handler = dtk.acquire('handler', { moduleHome });
       sandboxRegistry.lookupService.resetBehavior();
     });
 
