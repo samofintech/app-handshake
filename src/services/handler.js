@@ -42,7 +42,7 @@ function Handler (params = {}) {
   const T = params.loggingFactory.getTracer();
   const packageName = params.packageName || "app-handshake";
 
-  const { bcryptor, oauthApi, errorManager, sandboxRegistry, schemaManager, eventor } = params;
+  const { bcryptor, oauthApi, errorManager, sandboxRegistry, schemaManager, eventor, pwdRuler } = params;
 
   const config = lodash.get(params, ["sandboxConfig"], {});
   config.otpExpiredIn = config.otpExpiredIn || 15 * 60;
@@ -71,7 +71,7 @@ function Handler (params = {}) {
 
   const ctx = {
     L, T, packageName, config, schemaManager, serviceSelector,
-    errorBuilder, oauthApi, bcryptor, eventor
+    errorBuilder, oauthApi, bcryptor, eventor, pwdRuler
   };
 
   function attachServices (packet) {
@@ -192,7 +192,8 @@ Handler.referenceHash = {
   errorManager: "app-errorlist/manager",
   sandboxRegistry: "devebot/sandboxRegistry",
   schemaManager: "app-datastore/schemaManager",
-  eventor: "eventor"
+  eventor: "eventor",
+  pwdRuler: "pwdRuler",
 };
 
 module.exports = Handler;
@@ -799,7 +800,7 @@ function filterUserInfo (packet = {}) {
 }
 
 function updateUser (packet = {}) {
-  const { bcryptor, schemaManager, errorBuilder, config, appType, language, data = {} } = packet;
+  const { pwdRuler, bcryptor, schemaManager, errorBuilder, config, appType, language, data = {} } = packet;
 
   let p = getModelMethodPromise(schemaManager, "UserModel", "findOne");
 
@@ -826,6 +827,14 @@ function updateUser (packet = {}) {
       // make the query
       return Promise.all([findByHolderId, findByUsername])
         .spread(function(byHolderId, byUsername) {
+          if (data["password"]) {
+            if (!pwdRuler.isValid(data["password"])) {
+              return Promise.reject(errorBuilder.newError("PwdRuleInvalid", {
+                payload: {
+                }, language
+              }));
+            }
+          }
           if (byHolderId) {
             if (byUsername) {
               if (byHolderId._id.toString() !== byUsername._id.toString()) {
