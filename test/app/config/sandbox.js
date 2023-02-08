@@ -20,6 +20,21 @@ module.exports = {
       secretKey: 'dobietday',
       revisions: {
         serviceEntrypoints: '2019-01-01T00:00:00.000Z'
+      },
+      pwdRules: {
+        is: {
+          min: 5,
+          max: 100
+        },
+        has: {
+          digits: 1,
+          uppercase: 1,
+          lowercase: 1,
+          symbols: 1,
+          not: {
+            spaces: 0
+          }
+        }
       }
     },
     appRestfront: {

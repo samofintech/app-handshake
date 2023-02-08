@@ -152,6 +152,12 @@ module.exports = {
           message: "refreshToken not found",
           returnCode: 1161,
           statusCode: 400
+        },
+        // Password
+        PwdRuleInvalid: {
+          message: "Password's invalid rules.",
+          returnCode: 1162,
+          statusCode: 400
         }
       },
       presetOTPs: []
