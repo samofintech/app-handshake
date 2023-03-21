@@ -1,21 +1,24 @@
 'use strict';
 
-var devebot = require('devebot');
-var lodash = devebot.require('lodash');
-var path = require('path');
-var assert = require('chai').assert;
-var sinon = require('sinon');
-var dtk = require('../index');
+const devebot = require('devebot');
+const lodash = devebot.require('lodash');
+const path = require('path');
+const liberica = require("liberica");
+const assert = liberica.assert;
+const mockit = liberica.mockit;
+const sinon = liberica.sinon;
+
+const moduleHome = path.join(__dirname, "../../lib/services/");
 
 describe('services:handler', function() {
-  describe('ServiceSelector', function() {
-    var Handler, ServiceSelector;
-    var serviceResolver = 'app-restfetch';
-    var sandboxRegistry = { lookupService: sinon.stub() };
+  describe('parsePhoneNumber', function() {
+    let Handler, parsePhoneNumber;
+    const serviceResolver = 'app-handshake';
+    const sandboxRegistry = { lookupService: sinon.stub() };
 
     beforeEach(function() {
-      Handler = dtk.acquire('handler');
-      ServiceSelector = dtk.get(Handler, 'ServiceSelector');
+      Handler = mockit.acquire('handler', { moduleHome });
+      parsePhoneNumber = mockit.get(Handler, 'parsePhoneNumber');
       sandboxRegistry.lookupService.resetBehavior();
     });
 

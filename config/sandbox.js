@@ -1,6 +1,6 @@
 "use strict";
 
-var path = require("path");
+const path = require("path");
 
 module.exports = {
   plugins: {
@@ -152,6 +152,12 @@ module.exports = {
           message: "refreshToken not found",
           returnCode: 1161,
           statusCode: 400
+        },
+        // Password
+        PwdRuleInvalid: {
+          message: "Password's invalid rules.",
+          returnCode: 1162,
+          statusCode: 400
         }
       },
       presetOTPs: []
@@ -161,7 +167,6 @@ module.exports = {
         "handshake-restfront": path.join(__dirname, "../lib/mappings/restfront")
       }
     },
-    appRestfetch: {},
     appDatastore: {
       mappingStore: {
         "handshake-datastore": path.join(__dirname, "../lib/mappings/datastore")

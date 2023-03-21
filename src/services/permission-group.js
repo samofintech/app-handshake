@@ -1,14 +1,14 @@
-'use strict';
+"use strict";
 
-const Devebot = require('devebot');
-const Promise = Devebot.require('bluebird');
-const lodash = Devebot.require('lodash');
+const Devebot = require("devebot");
+const Promise = Devebot.require("bluebird");
+const lodash = Devebot.require("lodash");
 const APPTYPE_ADMIN = "adminApp";
 const APPTYPE_AGENT = "agentApp";
 const APPTYPE_CUSTOMER = "customerApp";
 const APPTYPE_CLIENT = "clientApp";
 
-function PermissionGroup(params) {
+function PermissionGroup (params) {
   const { errorManager, dataManipulator, language = "en" } = params;
 
   const packageName = params.packageName || "app-handshake";
@@ -36,17 +36,17 @@ function PermissionGroup(params) {
         } else {
           return dataManipulator.create({
             data: lodash.merge({name, permissions}, {"appType": sanitizeAppType(appTypeConvert)}),
-            type: 'PermissionGroupModel',
+            type: "PermissionGroupModel",
           })
-          .then(entity => entity)
+          .then(entity => entity);
         }
       })
       .catch(err => Promise.reject(err));
   };
 
-  function getOnePermissionGroupByNameAndAppType({name, appTypeConvert}) {
+  function getOnePermissionGroupByNameAndAppType ({name, appTypeConvert}) {
     return dataManipulator.findOne({
-      type: 'PermissionGroupModel',
+      type: "PermissionGroupModel",
       query: {
         "name": name,
         "appType": appTypeConvert
@@ -66,7 +66,7 @@ function PermissionGroup(params) {
         return lodash.union(lodash.flatMap(permissionGroups, userGroup => userGroup.permissions));
       }).catch(err => {
         return Promise.reject(err);
-      })
+      });
     }
   };
 }

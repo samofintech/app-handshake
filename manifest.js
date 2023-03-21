@@ -42,6 +42,9 @@ module.exports = {
           "revisions": {
             "type": "object"
           },
+          "pwdRules": {
+            "type": "object"
+          },
           "presetOTPs": {
             "type": "array",
             "items": {

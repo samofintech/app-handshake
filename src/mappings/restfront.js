@@ -1,23 +1,24 @@
-'use strict';
+"use strict";
 
-const Devebot = require('devebot');
-const Bluebird = Devebot.require('bluebird');
-const lodash = Devebot.require('lodash');
+const Devebot = require("devebot");
+const Bluebird = Devebot.require("bluebird");
+const lodash = Devebot.require("lodash");
 
 const apiMaps = [
   {
     path: [
-      '/auth/login', '/auth/login/:appType'
+      "/auth/login", "/auth/login/:appType"
     ],
-    method: 'POST',
+    method: "POST",
     input: {
       transform: function(req, reqOpts) {
         return {
           appType: extractAppType(req),
+          appPlatformType: extractAppPlatformType(req),
           language: extractLangCode(req),
-          schemaVersion: reqOpts.schemaVersion || req.headers['x-schema-version'],
+          schemaVersion: reqOpts.schemaVersion || req.headers["x-schema-version"],
           data: req.body
-        }
+        };
       },
       schema: {},
       validate: function(data) {
@@ -25,7 +26,7 @@ const apiMaps = [
       },
       examples: [
         {
-          path: '/auth/login',
+          path: "/auth/login",
           body: {
             "appType": "agent",
             "version": "1.0.0",
@@ -51,8 +52,8 @@ const apiMaps = [
         },
       ]
     },
-    serviceName: 'app-handshake/handler',
-    methodName: 'register',
+    serviceName: "app-handshake/handler",
+    methodName: "register",
     output: {
       transform: transformOutput,
     },
@@ -62,19 +63,20 @@ const apiMaps = [
     scope: "public",
   },
   {
-    path: '/auth/verification-code',
-    method: 'POST',
+    path: "/auth/verification-code",
+    method: "POST",
     input: {
       transform: function(req) {
         return {
           appType: extractAppType(req),
+          appPlatformType: extractAppPlatformType(req),
           language: extractLangCode(req),
           data: req.body
-        }
+        };
       },
       examples: [
         {
-          path: '/auth/verification-code',
+          path: "/auth/verification-code",
           body: {
             key: "UqR32OQ3S4arU3KalHbz9A",
             otp: "1543"
@@ -82,8 +84,8 @@ const apiMaps = [
         }
       ],
     },
-    serviceName: 'app-handshake/handler',
-    methodName: 'verificationCode',
+    serviceName: "app-handshake/handler",
+    methodName: "verificationCode",
     output: {
       transform: transformOutput,
     },
@@ -94,20 +96,21 @@ const apiMaps = [
   },
   {
     path: [
-      '/auth/refresh-token', '/auth/refresh-token/:appType'
+      "/auth/refresh-token", "/auth/refresh-token/:appType"
     ],
-    method: 'POST',
+    method: "POST",
     input: {
       transform: function(req) {
         return {
           appType: extractAppType(req),
+          appPlatformType: extractAppPlatformType(req),
           language: extractLangCode(req),
           data: req.body
-        }
+        };
       },
     },
-    serviceName: 'app-handshake/handler',
-    methodName: 'refreshToken',
+    serviceName: "app-handshake/handler",
+    methodName: "refreshToken",
     output: {
       transform: transformOutput,
     },
@@ -118,28 +121,29 @@ const apiMaps = [
   },
   {
     path: [
-      '/auth/revoke-token', '/auth/revoke-token/:appType'
+      "/auth/revoke-token", "/auth/revoke-token/:appType"
     ],
-    method: 'POST',
+    method: "POST",
     input: {
       examples: [
         {
-          path: '/auth/revoke-token',
+          path: "/auth/revoke-token",
           body: {
-            phoneNumber: '+84999999999'
+            phoneNumber: "+84999999999"
           }
         }
       ],
       transform: function(req) {
         return {
           appType: extractAppType(req),
+          appPlatformType: extractAppPlatformType(req),
           language: extractLangCode(req),
           data: req.body
-        }
+        };
       }
     },
-    serviceName: 'app-handshake/handler',
-    methodName: 'revokeToken',
+    serviceName: "app-handshake/handler",
+    methodName: "revokeToken",
     output: {
       transform: transformOutput,
     },
@@ -150,13 +154,13 @@ const apiMaps = [
   },
   {
     path: [
-      '/util/get-user', '/util/get-user/:appType'
+      "/util/get-user", "/util/get-user/:appType"
     ],
-    method: 'POST',
+    method: "POST",
     input: {
       examples: [
         {
-          path: '/util/get-user/agent',
+          path: "/util/get-user/agent",
           body: {
             email: "john.doe@gmail.com",
             holderId: "5d2c53f6cbc31a7849913058",
@@ -167,13 +171,14 @@ const apiMaps = [
       transform: function(req) {
         return {
           appType: extractAppType(req),
+          appPlatformType: extractAppPlatformType(req),
           language: extractLangCode(req),
           data: req.body
-        }
+        };
       }
     },
-    serviceName: 'app-handshake/handler',
-    methodName: 'getUser',
+    serviceName: "app-handshake/handler",
+    methodName: "getUser",
     output: {
       transform: transformOutput,
     },
@@ -184,14 +189,14 @@ const apiMaps = [
   },
   {
     path: [
-      '/auth/update-user', '/auth/update-user/:appType', //@Deprecated
-      '/util/synchronize-user', '/util/synchronize-user/:appType'
+      "/auth/update-user", "/auth/update-user/:appType", //@Deprecated
+      "/util/synchronize-user", "/util/synchronize-user/:appType"
     ],
-    method: 'POST',
+    method: "POST",
     input: {
       examples: [
         {
-          path: '/util/synchronize-user/agent',
+          path: "/util/synchronize-user/agent",
           body: {
             holderId: "5d2c53f6cbc31a7849913058",
             phoneNumber: "+84999999999",
@@ -206,13 +211,14 @@ const apiMaps = [
       transform: function(req) {
         return {
           appType: extractAppType(req),
+          appPlatformType: extractAppPlatformType(req),
           language: extractLangCode(req),
           data: req.body
-        }
+        };
       }
     },
-    serviceName: 'app-handshake/handler',
-    methodName: 'updateUser',
+    serviceName: "app-handshake/handler",
+    methodName: "updateUser",
     output: {
       transform: transformOutput,
     },
@@ -223,13 +229,13 @@ const apiMaps = [
   },
   {
     path: [
-      '/util/get-verification', '/util/get-verification/:appType'
+      "/util/get-verification", "/util/get-verification/:appType"
     ],
-    method: 'POST',
+    method: "POST",
     input: {
       examples: [
         {
-          path: '/util/get-verification/agent',
+          path: "/util/get-verification/agent",
           body: {
             holderId: "5d2c53f6cbc31a7849913058",
             phoneNumber: "+84999999999",
@@ -239,13 +245,14 @@ const apiMaps = [
       transform: function(req) {
         return {
           appType: extractAppType(req),
+          appPlatformType: extractAppPlatformType(req),
           language: extractLangCode(req),
           data: req.body
-        }
+        };
       }
     },
-    serviceName: 'app-handshake/handler',
-    methodName: 'getVerification',
+    serviceName: "app-handshake/handler",
+    methodName: "getVerification",
     output: {
       transform: transformOutput,
     },
@@ -256,22 +263,22 @@ const apiMaps = [
   },
   {
     path: [
-      '/util/reset-verification', '/util/reset-verification/:appType'
+      "/util/reset-verification", "/util/reset-verification/:appType"
     ],
-    method: 'POST',
+    method: "POST",
     input: {
       examples: [
         {
-          path: '/util/reset-verification',
+          path: "/util/reset-verification",
           headers: {
-            'X-App-Type': 'agentApp',
+            "X-App-Type": "agentApp",
           },
           body: {
             phoneNumber: "+84999999999",
           },
         },
         {
-          path: '/util/reset-verification/agent',
+          path: "/util/reset-verification/agent",
           body: {
             phoneNumber: "+84999999999",
           },
@@ -280,13 +287,14 @@ const apiMaps = [
       transform: function(req) {
         return {
           appType: extractAppType(req),
+          appPlatformType: extractAppPlatformType(req),
           language: extractLangCode(req),
           data: req.body
-        }
+        };
       }
     },
-    serviceName: 'app-handshake/handler',
-    methodName: 'resetVerification',
+    serviceName: "app-handshake/handler",
+    methodName: "resetVerification",
     output: {
       transform: transformOutput,
     },
@@ -296,14 +304,14 @@ const apiMaps = [
     scope: "private",
   },
   {
-    path: '/util/hash-password',
-    method: 'POST',
+    path: "/util/hash-password",
+    method: "POST",
     input: {
       transform: function(req) {
         if (lodash.isEmpty(req.body) || !lodash.isObject(req.body)) {
           return Bluebird.reject(new Error("Request's body is invalid"));
         }
-        if (!('password' in req.body)) {
+        if (!("password" in req.body)) {
           return Bluebird.reject(new Error("Password field not found"));
         }
         return req.body.password;
@@ -312,8 +320,8 @@ const apiMaps = [
         "ok": "changeme",
       }
     },
-    serviceName: 'app-handshake/bcryptor',
-    methodName: 'hash',
+    serviceName: "app-handshake/bcryptor",
+    methodName: "hash",
     output: {
       transform: function(result = {}, req) {
         const payload = {
@@ -333,14 +341,14 @@ const apiMaps = [
     scope: "private",
   },
   {
-    path: ['/auth/permission-groups/create', "/auth/permission-groups/create/:appType"],
-    method: 'POST',
+    path: ["/auth/permission-groups/create", "/auth/permission-groups/create/:appType"],
+    method: "POST",
     input: {
       examples: [
         {
-          path: '/permission-groups/create',
+          path: "/permission-groups/create",
           headers: {
-            'X-App-Type': 'adminApp',
+            "X-App-Type": "adminApp",
           },
           body: {
             name: "ADMIN_GROUP",
@@ -348,7 +356,7 @@ const apiMaps = [
           },
         },
         {
-          path: '/permission-groups/create/admin',
+          path: "/permission-groups/create/admin",
           body: {
             name: "ADMIN_GROUP",
             permissions: [""]
@@ -358,16 +366,17 @@ const apiMaps = [
       transform: function(req) {
         if (lodash.isEmpty(req.body) || !lodash.isObject(req.body)) {
           return Bluebird.reject(new Error("Request's body is invalid"));
-        };
+        }
         return {
           name: req.body.name,
           permissions: req.body.permissions,
-          appType: extractAppType(req)
-        }
+          appType: extractAppType(req),
+          appPlatformType: extractAppPlatformType(req)
+        };
       }
     },
-    serviceName: 'app-handshake/permissionGroup',
-    methodName: 'createPermissionGroup',
+    serviceName: "app-handshake/permissionGroup",
+    methodName: "createPermissionGroup",
     output: {
       transform: function(result = {}, req) {
         const payload = {
@@ -386,22 +395,22 @@ const apiMaps = [
   },
   {
     path: [
-      '/auth/permission-groups/getPermission', "/auth/permission-groups/getPermission/:appType"
+      "/auth/permission-groups/getPermission", "/auth/permission-groups/getPermission/:appType"
     ],
-    method: 'POST',
+    method: "POST",
     input: {
       examples: [
         {
-          path: '/auth/permission-groups/getPermission',
+          path: "/auth/permission-groups/getPermission",
           headers: {
-            'X-App-Type': 'adminApp',
+            "X-App-Type": "adminApp",
           },
           body: {
             groups: [""]
           },
         },
         {
-          path: '/auth/permission-groups/getPermission/admin',
+          path: "/auth/permission-groups/getPermission/admin",
           body: {
             groups: [""]
           },
@@ -410,15 +419,16 @@ const apiMaps = [
       transform: function(req) {
         if (lodash.isEmpty(req.body) || !lodash.isObject(req.body)) {
           return Bluebird.reject(new Error("Request's body is invalid"));
-        };
+        }
         return {
           groups: req.body.groups,
-          appType: extractAppType(req)
-        }
+          appType: extractAppType(req),
+          appPlatformType: extractAppPlatformType(req)
+        };
       }
     },
-    serviceName: 'app-handshake/permissionGroup',
-    methodName: 'getPermissionByGroupNameAndAppType',
+    serviceName: "app-handshake/permissionGroup",
+    methodName: "getPermissionByGroupNameAndAppType",
     output: {
       transform: function(result = {}, req) {
         const payload = {
@@ -437,15 +447,19 @@ const apiMaps = [
   }
 ];
 
-function extractAppType(req) {
-  return req.params.appType || req.get('X-App-Type') || 'agent';
+function extractAppType (req) {
+  return req.params.appType || req.get("X-App-Type") || req.get("x-app-type") || "agent";
 }
 
-function extractLangCode(req) {
-  return req.get('X-Lang-Code') || req.get('X-Language');
+function extractAppPlatformType (req) {
+  return req.params.appPlatformType || req.get("X-Platform-App") || req.get("X-Mobile-App") || req.get("x-mobile-app") || "unknown";
 }
 
-function transformOutput(result = {}, req) {
+function extractLangCode (req) {
+  return req.get("X-Lang-Code") || req.get("X-Language");
+}
+
+function transformOutput (result = {}, req) {
   const payload = {
     headers: {
       "X-Return-Code": result.code || 0
@@ -455,7 +469,7 @@ function transformOutput(result = {}, req) {
   return payload;
 }
 
-function transformError(err, req) {
+function transformError (err, req) {
   const output = {
     statusCode: err.statusCode || 500,
     headers: {},
@@ -465,10 +479,10 @@ function transformError(err, req) {
     }
   };
   if (err.packageRef) {
-    output.headers['X-Package-Ref'] = err.packageRef;
+    output.headers["X-Package-Ref"] = err.packageRef;
   }
   if (err.returnCode) {
-    output.headers['X-Return-Code'] = err.returnCode;
+    output.headers["X-Return-Code"] = err.returnCode;
   }
   if (lodash.isObject(err.payload)) {
     output.body.payload = err.payload;

@@ -1,4 +1,4 @@
-'use strict';
+"use strict";
 
 /**
  *
@@ -6,7 +6,7 @@
  */
 
 module.exports = {
-  name: 'DeviceModel',
+  name: "DeviceModel",
   descriptor: {
     imei: { type: String },
     platform: { type: String },
@@ -21,6 +21,6 @@ module.exports = {
     updatedAt: { type: Date, default: Date.now }
   },
   options: {
-    collection: 'devices'
+    collection: "devices"
   }
 };

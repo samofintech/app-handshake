@@ -1,12 +1,12 @@
-'use strict';
+"use strict";
 
 /**
  * Generate password from allowed word
  */
-var digits = '0123456789'
-var alphabets = 'abcdefghijklmnopqrstuvwxyz'
-var upperCase = alphabets.toUpperCase()
-var specialChars = '#!&@'
+const DIGITS = "0123456789";
+const ALPHABETS = "abcdefghijklmnopqrstuvwxyz";
+const UPPER_CASES = ALPHABETS.toUpperCase();
+const SPECIAL_CHARS = "#!&@";
 
 module.exports = {
   /**
@@ -19,28 +19,28 @@ module.exports = {
    * @param  {boolean} options.specialChars Default: `true` true value includes specialChars in OTP
    */
   generate: function (length, options) {
-    length = length || 10
-    var generateOptions = options || {}
+    length = length || 10;
+    const generateOptions = options || {};
 
-    generateOptions.digits = generateOptions.hasOwnProperty('digits') ? options.digits : true
-    generateOptions.alphabets = generateOptions.hasOwnProperty('alphabets') ? options.alphabets : true
-    generateOptions.upperCase = generateOptions.hasOwnProperty('upperCase') ? options.upperCase : true
-    generateOptions.specialChars = generateOptions.hasOwnProperty('specialChars') ? options.specialChars : true
+    generateOptions.digits = generateOptions.hasOwnProperty("digits") ? options.digits : true;
+    generateOptions.alphabets = generateOptions.hasOwnProperty("alphabets") ? options.alphabets : true;
+    generateOptions.upperCase = generateOptions.hasOwnProperty("upperCase") ? options.upperCase : true;
+    generateOptions.specialChars = generateOptions.hasOwnProperty("specialChars") ? options.specialChars : true;
 
-    var allowsChars = ((generateOptions.digits || '') && digits) +
-      ((generateOptions.alphabets || '') && alphabets) +
-      ((generateOptions.upperCase || '') && upperCase) +
-      ((generateOptions.specialChars || '') && specialChars)
-    var password = ''
-    for (var index = 0; index < length; ++index) {
-      var charIndex = rand(0, allowsChars.length - 1)
-      password += allowsChars[charIndex]
+    const allowsChars = ((generateOptions.digits || "") && DIGITS) +
+      ((generateOptions.alphabets || "") && ALPHABETS) +
+      ((generateOptions.upperCase || "") && UPPER_CASES) +
+      ((generateOptions.specialChars || "") && SPECIAL_CHARS);
+    let password = "";
+    for (let index = 0; index < length; ++index) {
+      let charIndex = rand(0, allowsChars.length - 1);
+      password += allowsChars[charIndex];
     }
-    return password
+    return password;
   }
-}
+};
 
 function rand (min, max) {
-  var random = Math.random()
-  return Math.floor(random * (max - min) + min)
+  const random = Math.random();
+  return Math.floor(random * (max - min) + min);
 }
