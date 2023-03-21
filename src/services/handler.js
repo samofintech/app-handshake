@@ -230,13 +230,33 @@ function loginAdminApp (packet = {}) {
           }, language
         }));
       }
-      return bcryptor.compare(data.password, encPasswd).then(function(matched) {
+      return bcryptor.compare(data.password, encPasswd).then(async function(matched) {
         if (matched) {
-          lodash.assign(user[appType], { verified: true, refreshToken: genKey() });
+          lodash.assign(user[appType], { verified: true, refreshToken: genKey(), invalidPasswordCount: 0 });
           return user.save();
         } else {
+          const findOneAndUpdate = await getModelMethodPromise(
+            schemaManager,
+            "UserModel",
+            "findOneAndUpdate"
+          );
+          user = await findOneAndUpdate(
+            { _id: user._id },
+            { $inc: { [`${appType}.invalidPasswordCount`]: 1 } },
+            { new: true }
+          );
+          if (user[appType].invalidPasswordCount > config.invalidPasswordAttempts) {
+            user[appType].invalidPasswordCount = 0;
+            user.activated = false;
+            await user.save();
+            return Promise.reject(errorBuilder.newError("UserIsLocked", {
+              payload: _extractUserQuery(appType, data),
+              language
+            }));
+          }
           return Promise.reject(errorBuilder.newError("PasswordIsMismatched", {
             payload: {
+              invalidPasswordAttempts: config.invalidPasswordAttempts - user[appType].invalidPasswordCount + 1,
               appType: appType,
               username: data.username
             }, language

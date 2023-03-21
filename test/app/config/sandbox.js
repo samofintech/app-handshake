@@ -10,6 +10,7 @@ module.exports = {
   },
   plugins: {
     appHandshake: {
+      invalidPasswordAttempts: 3,
       otpExpiredIn: 15 * 60,
       otpTypingTime: 5 * 60,
       otpSize: 4,

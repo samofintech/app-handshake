@@ -4,6 +4,9 @@ module.exports = {
       "schema": {
         "type": "object",
         "properties": {
+          "invalidPasswordAttempts": {
+            "type": "number"
+          },
           "otpExpiredIn": {
             "type": "number"
           },
