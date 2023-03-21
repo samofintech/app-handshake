@@ -84,7 +84,7 @@ module.exports = {
           returnCode: 1126,
           statusCode: 400
         },
-        InsuranceCustomerAppHolderIdOrPhoneNumberExpected: {
+        CustomerAppHolderIdOrPhoneNumberExpected: {
           message: "[InsuranceCustomerApp]: holderId/phoneNumber expected",
           returnCode: 1127,
           statusCode: 400
