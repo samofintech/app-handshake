@@ -9,6 +9,9 @@
     "email": "apporo@devebot.com",
     "url": "https://github.com/apporo"
   },
+  "engines": {
+    "node": ">=12"
+  },
   "main": "index.js",
   "files": [
     "bin/",
