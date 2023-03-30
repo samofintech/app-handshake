@@ -54,6 +54,7 @@ function Handler (params = {}) {
   config.defaultCountryCode = config.defaultCountryCode || "VN";
   config.selectedFields = config.selectedFields || {
     key: 1, expiredIn: 1, expiredTime: 1, phoneNumber: 0,
+    otpType: 1,
   };
   config.projection = [];
   lodash.forOwn(config.selectedFields, function(flag, fieldName) {
@@ -548,7 +549,7 @@ function generateOTP (packet = {}) {
     });
 }
 
-function sendOTP (packet = {}) {
+async function sendOTP (packet = {}) {
   const { T, L } = packet;
   const { packageName, config, serviceSelector, verification, skipped, options } = packet;
   if (skipped === true) {
@@ -567,9 +568,14 @@ function sendOTP (packet = {}) {
       otp: verification.otp,
       text: format(config.smsTemplate, { otp: verification.otp }),
     };
-    Promise.resolve(ref.method(msgInfo, options)).then(function(smsResult) {
+    await Promise.resolve(ref.method(msgInfo, options)).then(function(smsResult) {
       L.has("debug") && L.log("debug", T.add({ smsResult }).toMessage({
         tmpl: "SendSMS result: ${smsResult}"
+      }));
+      lodash.set(packet, "verification.otpType", lodash.get(smsResult, "type"));
+    }).catch(function(error) {
+      L.has("debug") && L.log("debug", T.add({ error }).toMessage({
+        tmpl: "SendSMS error: ${error}"
       }));
     });
   }
