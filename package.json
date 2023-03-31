@@ -1,6 +1,6 @@
 {
   "name": "app-handshake",
-  "version": "0.4.3",
+  "version": "0.4.4",
   "description": "Devebot oidc authentication layerware",
   "license": "MIT",
   "homepage": "https://github.com/apporo/app-handshake.git",
@@ -8,6 +8,9 @@
     "name": "apporo",
     "email": "apporo@devebot.com",
     "url": "https://github.com/apporo"
+  },
+  "engines": {
+    "node": ">=12"
   },
   "main": "index.js",
   "files": [
