@@ -4,6 +4,9 @@ module.exports = {
       "schema": {
         "type": "object",
         "properties": {
+          "maxResendTimes": {
+            "type": "number"
+          },
           "invalidPasswordAttempts": {
             "type": "number"
           },
