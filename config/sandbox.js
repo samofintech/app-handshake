@@ -136,6 +136,11 @@ module.exports = {
           returnCode: 1145,
           statusCode: 400
         },
+        VerificationExceedMaxResendTimes: {
+          message: "Yêu cầu gửi lại quá {maxResendTimes} lần. Vui lòng đăng nhập lại sau 1 tiếng",
+          returnCode: 1146,
+          statusCode: 400
+        },
         // OTP
         OTPHasExpired: {
           message: "OTP has expired",

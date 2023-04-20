@@ -48,6 +48,7 @@ function Handler (params = {}) {
   config.otpExpiredIn = config.otpExpiredIn || 15 * 60;
   config.otpTypingTime = config.otpTypingTime || 2 * 60;
   config.otpSize = config.otpSize || 7;
+  config.maxResendTimes = config.maxResendTimes || 3;
   config.smsTemplate = config.smsTemplate ||
     "Please use the code - ${otp} to verify your phone for app authentication";
   config.tokenExpiredIn = config.tokenExpiredIn || 15 * 60;
@@ -489,16 +490,39 @@ function generateOTP (packet = {}) {
       };
       return method(conditions, null, opts);
     })
-    .then(function(verification) {
+    .then(async function(verification) {
       if (verification) {
         if (verification.expiredTime) {
           // const now = moment();
           // const nowPlus = now.add(config.otpTypingTime, "seconds");
           // const oldExpiredTime = moment(verification.expiredTime);
           // if (nowPlus.isAfter(oldExpiredTime)) {
+          if (packet.hasResend) {
+            const verificationFindOneAndUpdate = await getModelMethodPromise(
+              schemaManager,
+              "VerificationModel",
+              "findOneAndUpdate"
+            );
+            const updatedVerification = await verificationFindOneAndUpdate(
+              { _id: verification._id },
+              { $inc: { resendTimes: 1 } },
+              { new: true }
+            );
+            if (updatedVerification.resendTimes > config.maxResendTimes) {
+              throw errorBuilder.newError("VerificationExceedMaxResendTimes", {
+                payload: {
+                  verification: updatedVerification._id,
+                  maxResendTimes: config.maxResendTimes,
+                },
+                language
+              });
+            }
+          }
           if (momentHelper.checkTimeHasExpired(verification.expiredTime, config.otpTypingTime)) {
             // there is no time to press the received token, create another verification
             verification = null;
+          } else if (packet.hasResend) {
+            lodash.assign(packet, { skipped: false });
           } else {
             lodash.assign(packet, { skipped: true });
           }

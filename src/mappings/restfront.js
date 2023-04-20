@@ -7,6 +7,57 @@ const lodash = Devebot.require("lodash");
 const apiMaps = [
   {
     path: [
+      "/auth/resend-otp",
+    ],
+    method: "POST",
+    input: {
+      transform: function(req, reqOpts) {
+        return {
+          hasResend: true,
+          appType: extractAppType(req),
+          appPlatformType: extractAppPlatformType(req),
+          language: extractLangCode(req),
+          schemaVersion: reqOpts.schemaVersion || req.headers["x-schema-version"],
+          data: req.body
+        };
+      },
+      schema: {},
+      validate: function(data) {
+        return true;
+      },
+      examples: [
+        {
+          path: "/auth/resend-otp",
+          body: {
+            "appType": "agent",
+            "version": "1.0.0",
+            "org": "E621E1F8-C36C-495A-93FC-0C247A3E6FGG",
+            "device": {
+              "imei": "990000862471854",
+              "platform": "iOS"
+            },
+            "phoneNumber": "+12055555555",
+            "phone": {
+              "country": "US",
+              "countryCode": "+1",
+              "number": "2055555555"
+            }
+          }
+        },
+      ]
+    },
+    serviceName: "app-handshake/handler",
+    methodName: "register",
+    output: {
+      transform: transformOutput,
+    },
+    error: {
+      transform: transformError,
+    },
+    scope: "public",
+  },
+  {
+    path: [
       "/auth/login", "/auth/login/:appType"
     ],
     method: "POST",
