@@ -577,6 +577,12 @@ async function sendOTP (packet = {}) {
   const { T, L } = packet;
   const { packageName, config, serviceSelector, verification, skipped, options, appType, appPlatformType } = packet;
   if (skipped === true) {
+    const messenderService = [packageName, "messender"].join(chores.getSeparator());
+    const ref = serviceSelector.lookupMethod(messenderService, "getOTPType");
+    if (ref.service && ref.method) {
+      const res = await ref.method({ appType, appPlatformType }, options);
+      lodash.set(packet, "verification.otpType", lodash.get(res, "type"));
+    }
     return Promise.resolve(packet);
   }
   const messenderService = [packageName, "messender"].join(chores.getSeparator());
