@@ -1,6 +1,6 @@
 {
   "name": "app-handshake",
-  "version": "0.3.39",
+  "version": "0.4.5",
   "description": "Devebot oidc authentication layerware",
   "license": "MIT",
   "homepage": "https://github.com/apporo/app-handshake.git",
@@ -8,6 +8,9 @@
     "name": "apporo",
     "email": "apporo@devebot.com",
     "url": "https://github.com/apporo"
+  },
+  "engines": {
+    "node": ">=12"
   },
   "main": "index.js",
   "files": [
@@ -20,54 +23,54 @@
   "scripts": {
     "clean": "rm -rf ./lib",
     "clean-modules": "rm -rf ./node_modules && rm ./package-lock.json",
-    "build": "babel ./src -d ./lib",
-    "prepublishOnly": "npm run clean && cross-env NODE_ENV=production npm run build",
-    "pretest": "npm run clean && cross-env NODE_ENV=test npm run build",
-    "test": "mocha ./test/{bdd,tdd}/*test.js",
-    "verify": "npm run prepublish && mocha ./test/{bdd,tdd}/*test.js",
-    "eslint": "eslint ./src/ --quiet"
+    "bootstrap": "npm install --ignore-scripts; npm --prefix=test install --ignore-scripts",
+    "build": "npm exec -- babel ./src -d ./lib",
+    "check": "npm exec -- eslint ./src index.js",
+    "check-silent": "npm exec -- eslint --quiet ./src index.js",
+    "pretest": "npm run check-silent && npm run clean && NODE_ENV=${DEVEBOT_NODE_ENV:-test} npm run build",
+    "testOnly": "npm --prefix=test exec -- mocha --recursive ./**/tdd/*-test.js",
+    "test": "npm run testOnly",
+    "prepublishOnly": "npm run check-silent && npm run clean && NODE_ENV=${DEVEBOT_NODE_ENV:-production} npm run build",
+    "verify": "npm run prepublishOnly && npm run testOnly"
   },
   "keywords": [
     "devebot",
     "devebot-plugin"
   ],
   "peerDependencies": {
-    "app-datastore": "^0.3.5",
-    "app-errorlist": "^0.3.0",
-    "app-restfetch": "^0.3.0",
-    "app-restfront": "^0.3.1",
-    "app-tracelog": "^0.3.0",
-    "app-webweaver": "^0.3.0",
-    "devebot": "^0.3.0"
+    "app-datastore": "^0.4.0",
+    "app-errorlist": "^0.4.0",
+    "app-restfetch": "^0.4.0",
+    "app-restfront": "^0.4.0",
+    "app-tracelog": "^0.4.0",
+    "app-webweaver": "^0.4.0",
+    "devebot": "^0.4.0"
   },
   "dependencies": {
-    "app-datastore": "^0.3.1",
-    "app-errorlist": "^0.3.0",
-    "app-restfetch": "^0.3.0",
-    "app-restfront": "^0.3.1",
-    "app-tracelog": "^0.3.0",
-    "app-webweaver": "^0.3.0",
-    "bcryptjs": "^2.4.3",
-    "devebot": "^0.3.0",
-    "google-libphonenumber": "^3.2.13",
-    "jsonwebtoken": "^8.5.1",
-    "moment": "^2.29.1"
+    "app-datastore": "^0.4.0",
+    "app-errorlist": "^0.4.0",
+    "app-restfetch": "^0.4.0",
+    "app-restfront": "^0.4.0",
+    "app-tracelog": "^0.4.0",
+    "app-webweaver": "^0.4.0",
+    "bcryptjs": "2.4.3",
+    "devebot": "^0.4.0",
+    "google-libphonenumber": "3.2.13",
+    "password-validator": "^5.3.0",
+    "tokenlib": "^0.1.0"
   },
   "devDependencies": {
-    "babel-cli": "^6.26.0",
-    "babel-plugin-minify-mangle-names": "^0.3.0",
-    "babel-preset-env": "^1.6.1",
-    "chai": "^4.2.0",
+    "@babel/cli": "^7.19.3",
+    "@babel/core": "^7.20.2",
+    "@babel/preset-env": "^7.20.2",
+    "babel-plugin-minify-mangle-names": "^0.5.1",
     "cross-env": "^5.2.0",
-    "devebot-tools": "^0.2.0",
     "eslint": "^5.16.0",
     "eslint-config-standard": "^12.0.0",
-    "eslint-plugin-import": "^2.22.1",
+    "eslint-plugin-import": "^2.14.0",
     "eslint-plugin-node": "^7.0.1",
     "eslint-plugin-promise": "^4.0.1",
-    "eslint-plugin-standard": "^4.0.0",
-    "mocha": "^6.2.3",
-    "rewire": "^4.0.1",
-    "sinon": "^7.3.2"
+    "eslint-plugin-security": "^1.5.0",
+    "eslint-plugin-standard": "^4.0.0"
   }
 }

@@ -4,6 +4,12 @@ module.exports = {
       "schema": {
         "type": "object",
         "properties": {
+          "maxResendTimes": {
+            "type": "number"
+          },
+          "invalidPasswordAttempts": {
+            "type": "number"
+          },
           "otpExpiredIn": {
             "type": "number"
           },
@@ -40,6 +46,9 @@ module.exports = {
             "type": "string"
           },
           "revisions": {
+            "type": "object"
+          },
+          "pwdRules": {
             "type": "object"
           },
           "presetOTPs": {

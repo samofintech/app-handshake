@@ -1,4 +1,4 @@
-var lodash = require('lodash');
+const lodash = require('lodash');
 
 module.exports = {
   plugins: {

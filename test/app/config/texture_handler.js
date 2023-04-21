@@ -1,4 +1,6 @@
-var lodash = require('lodash');
+"use strict";
+
+const lodash = require('lodash');
 
 module.exports = {
   plugins: {

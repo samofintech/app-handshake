@@ -1,12 +1,12 @@
 'use strict';
 
-var Devebot = require('devebot');
-var lodash = Devebot.require('lodash');
-var LogConfig = Devebot.require('logolite').LogConfig;
-var LogTracer = Devebot.require('logolite').LogTracer;
-var path = require('path');
-var rewire = require('rewire');
-var sinon = require('sinon');
+const Devebot = require('devebot');
+const lodash = Devebot.require('lodash');
+const LogConfig = Devebot.require('logolite').LogConfig;
+const LogTracer = Devebot.require('logolite').LogTracer;
+const path = require('path');
+const rewire = require('rewire');
+const sinon = require('sinon');
 
 function TestUtils() {
 
@@ -23,9 +23,9 @@ function TestUtils() {
   }
 
   this.spy = function(rewiredModule, propName) {
-    var origin = this.get(rewiredModule, propName);
+    const origin = this.get(rewiredModule, propName);
     if (lodash.isFunction(origin)) {
-      var spied = sinon.spy(origin);
+      const spied = sinon.spy(origin);
       this.set(rewiredModule, propName, spied);
     }
     return this.get(rewiredModule, propName);
@@ -50,12 +50,12 @@ function LoggingFactoryMock(params) {
     tracerStore.add.splice(0);
     tracerStore.toMessage.splice(0);
   }
-  var logger = {
+  const logger = {
     has: sinon.stub().returns(true),
     log: sinon.stub()
   }
-  var tracerStore = { add: [], toMessage: [] }
-  var tracer = {
+  const tracerStore = { add: [], toMessage: [] }
+  const tracer = {
     getLogID: LogTracer.ROOT.getLogID,
     add: sinon.stub().callsFake(function(params) {
       if (params.captureMethodCall !== false) {

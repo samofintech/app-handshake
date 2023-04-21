@@ -1,4 +1,4 @@
-'use strict';
+"use strict";
 
 /**
  *
@@ -6,7 +6,7 @@
  */
 
 module.exports = {
-  name: 'FixedotpModel',
+  name: "FixedotpModel",
   descriptor: {
     phoneNumber: { type: String },
     otp: { type: String },
@@ -14,6 +14,6 @@ module.exports = {
     tags: [String]
   },
   options: {
-    collection: 'fixed-otps'
+    collection: "fixed-otps"
   }
 };

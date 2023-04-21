@@ -1,6 +1,6 @@
 "use strict";
 
-var path = require("path");
+const path = require("path");
 
 module.exports = {
   plugins: {
@@ -84,7 +84,7 @@ module.exports = {
           returnCode: 1126,
           statusCode: 400
         },
-        InsuranceCustomerAppHolderIdOrPhoneNumberExpected: {
+        CustomerAppHolderIdOrPhoneNumberExpected: {
           message: "[InsuranceCustomerApp]: holderId/phoneNumber expected",
           returnCode: 1127,
           statusCode: 400
@@ -136,6 +136,11 @@ module.exports = {
           returnCode: 1145,
           statusCode: 400
         },
+        VerificationExceedMaxResendTimes: {
+          message: "Yêu cầu gửi lại quá {maxResendTimes} lần. Vui lòng đăng nhập lại sau 1 tiếng",
+          returnCode: 1146,
+          statusCode: 400
+        },
         // OTP
         OTPHasExpired: {
           message: "OTP has expired",
@@ -151,6 +156,12 @@ module.exports = {
         RefreshTokenNotFound: {
           message: "refreshToken not found",
           returnCode: 1161,
+          statusCode: 400
+        },
+        // Password
+        PwdRuleInvalid: {
+          message: "Password's invalid rules.",
+          returnCode: 1162,
           statusCode: 400
         }
       },

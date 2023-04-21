@@ -6,7 +6,7 @@ const chores = Devebot.require("chores");
 const lodash = Devebot.require("lodash");
 const logolite = Devebot.require("logolite");
 const format = logolite.LogFormat;
-const moment = require("moment");
+const { momentHelper } = require("tokenlib");
 const util = require("util");
 const glpn = require("google-libphonenumber");
 const phoneUtil = glpn.PhoneNumberUtil.getInstance();
@@ -37,23 +37,25 @@ const REFRESH_TOKEN_TYPE = {
   default: "refreshToken"
 };
 
-function Handler(params = {}) {
+function Handler (params = {}) {
   const L = params.loggingFactory.getLogger();
   const T = params.loggingFactory.getTracer();
   const packageName = params.packageName || "app-handshake";
 
-  const { bcryptor, oauthApi, errorManager, sandboxRegistry, schemaManager, eventor } = params;
+  const { bcryptor, oauthApi, errorManager, sandboxRegistry, schemaManager, eventor, pwdRuler } = params;
 
   const config = lodash.get(params, ["sandboxConfig"], {});
   config.otpExpiredIn = config.otpExpiredIn || 15 * 60;
   config.otpTypingTime = config.otpTypingTime || 2 * 60;
   config.otpSize = config.otpSize || 7;
+  config.maxResendTimes = config.maxResendTimes || 3;
   config.smsTemplate = config.smsTemplate ||
     "Please use the code - ${otp} to verify your phone for app authentication";
   config.tokenExpiredIn = config.tokenExpiredIn || 15 * 60;
   config.defaultCountryCode = config.defaultCountryCode || "VN";
   config.selectedFields = config.selectedFields || {
     key: 1, expiredIn: 1, expiredTime: 1, phoneNumber: 0,
+    otpType: 1,
   };
   config.projection = [];
   lodash.forOwn(config.selectedFields, function(flag, fieldName) {
@@ -71,14 +73,14 @@ function Handler(params = {}) {
 
   const ctx = {
     L, T, packageName, config, schemaManager, serviceSelector,
-    errorBuilder, oauthApi, bcryptor, eventor
+    errorBuilder, oauthApi, bcryptor, eventor, pwdRuler
   };
 
-  function attachServices(packet) {
+  function attachServices (packet) {
     return lodash.assign(packet, ctx);
   }
 
-  function detachServices(packet) {
+  function detachServices (packet) {
     return lodash.omit(packet, lodash.keys(ctx));
   }
 
@@ -106,21 +108,21 @@ function Handler(params = {}) {
     });
   };
 
-  function registerAdminAccount(packet) {
+  function registerAdminAccount (packet) {
     return Promise.resolve(packet)
       .then(attachServices)
       .then(loginAdminApp)
       .then(detachServices);
   }
 
-  function registerClientAccount(packet) {
+  function registerClientAccount (packet) {
     return Promise.resolve(packet)
       .then(attachServices)
       .then(loginClientApp)
       .then(detachServices);
   }
 
-  function registerAgentAccount(packet) {
+  function registerAgentAccount (packet) {
     return Promise.resolve(packet)
       .then(attachServices)
       .then(upsertDevice)
@@ -131,7 +133,7 @@ function Handler(params = {}) {
       .then(detachServices);
   }
 
-  function registerCustomerAccount(packet) {
+  function registerCustomerAccount (packet) {
     return Promise.resolve(packet)
       .then(attachServices)
       .then(upsertDevice)
@@ -184,7 +186,7 @@ function Handler(params = {}) {
       .then(resetVerification)
       .then(detachServices);
   };
-};
+}
 
 Handler.referenceHash = {
   bcryptor: "bcryptor",
@@ -192,12 +194,13 @@ Handler.referenceHash = {
   errorManager: "app-errorlist/manager",
   sandboxRegistry: "devebot/sandboxRegistry",
   schemaManager: "app-datastore/schemaManager",
-  eventor: "eventor"
+  eventor: "eventor",
+  pwdRuler: "pwdRuler",
 };
 
 module.exports = Handler;
 
-function getModelMethodPromise(schemaManager, modelName, methodName) {
+function getModelMethodPromise (schemaManager, modelName, methodName) {
   const model = schemaManager.getModel(modelName);
   if (!model) {
     return Promise.reject(new Error(modelName + "_not_available"));
@@ -205,7 +208,7 @@ function getModelMethodPromise(schemaManager, modelName, methodName) {
   return Promise.resolve(Promise.promisify(model[methodName], { context: model }));
 }
 
-function loginAdminApp(packet = {}) {
+function loginAdminApp (packet = {}) {
   const { bcryptor, oauthApi, schemaManager, errorBuilder, config, appType, language, data } = packet;
   return Promise.resolve().then(function() {
     return getModelMethodPromise(schemaManager, "UserModel", "findOne");
@@ -229,13 +232,33 @@ function loginAdminApp(packet = {}) {
           }, language
         }));
       }
-      return bcryptor.compare(data.password, encPasswd).then(function(matched) {
+      return bcryptor.compare(data.password, encPasswd).then(async function(matched) {
         if (matched) {
-          lodash.assign(user[appType], { verified: true, refreshToken: genKey() });
+          lodash.assign(user[appType], { verified: true, refreshToken: genKey(), invalidPasswordCount: 0 });
           return user.save();
         } else {
+          const findOneAndUpdate = await getModelMethodPromise(
+            schemaManager,
+            "UserModel",
+            "findOneAndUpdate"
+          );
+          user = await findOneAndUpdate(
+            { _id: user._id },
+            { $inc: { [`${appType}.invalidPasswordCount`]: 1 } },
+            { new: true }
+          );
+          if (user[appType].invalidPasswordCount > config.invalidPasswordAttempts) {
+            user[appType].invalidPasswordCount = 0;
+            user.activated = false;
+            await user.save();
+            return Promise.reject(errorBuilder.newError("UserIsLocked", {
+              payload: _extractUserQuery(appType, data),
+              language
+            }));
+          }
           return Promise.reject(errorBuilder.newError("PasswordIsMismatched", {
             payload: {
+              invalidPasswordAttempts: config.invalidPasswordAttempts - user[appType].invalidPasswordCount + 1,
               appType: appType,
               username: data.username
             }, language
@@ -247,9 +270,10 @@ function loginAdminApp(packet = {}) {
       if (user && lodash.isFunction(user.toJSON)) {
         user = user.toJSON();
       }
-      const now = moment();
       const expiredIn = config.otpExpiredIn;
-      const expiredTime = now.add(config.otpExpiredIn, "seconds").toDate();
+      const expiredTime = momentHelper.getExpiredTime(expiredIn);
+      // const now = moment();
+      // const expiredTime = now.add(config.otpExpiredIn, "seconds").toDate();
       const auth = {
         token_type: "Bearer",
         access_token: oauthApi.createAppAccessToken({
@@ -270,7 +294,7 @@ function loginAdminApp(packet = {}) {
     });
 }
 
-function loginClientApp(packet = {}) {
+function loginClientApp (packet = {}) {
   const {
     bcryptor,
     oauthApi,
@@ -331,9 +355,10 @@ function loginClientApp(packet = {}) {
       if (user && lodash.isFunction(user.toJSON)) {
         user = user.toJSON();
       }
-      const now = moment();
       const expiredIn = config.otpExpiredIn;
-      const expiredTime = now.add(config.otpExpiredIn, "seconds").toDate();
+      const expiredTime = momentHelper.getExpiredTime(expiredIn);
+      // const now = moment();
+      // const expiredTime = now.add(config.otpExpiredIn, "seconds").toDate();
       const auth = {
         token_type: "Bearer",
         access_token: oauthApi.createAppAccessToken({
@@ -355,7 +380,7 @@ function loginClientApp(packet = {}) {
     });
 }
 
-function upsertDevice(packet = {}) {
+function upsertDevice (packet = {}) {
   const { schemaManager, data } = packet;
   return getModelMethodPromise(schemaManager, "DeviceModel", "findOneAndUpdate")
     .then(function(method) {
@@ -376,7 +401,7 @@ function upsertDevice(packet = {}) {
     });
 }
 
-function _findUserByHolderId({ schemaManager, config, appType, data, errorBuilder, language }) {
+function _findUserByHolderId ({ schemaManager, config, appType, data, errorBuilder, language }) {
   return Promise.resolve().then(function() {
     return getModelMethodPromise(schemaManager, "UserModel", "findOne");
   })
@@ -388,7 +413,7 @@ function _findUserByHolderId({ schemaManager, config, appType, data, errorBuilde
     });
 }
 
-function _findUserByPhoneNumber({ schemaManager, config, appType, data, errorBuilder, language }) {
+function _findUserByPhoneNumber ({ schemaManager, config, appType, data, errorBuilder, language }) {
   return Promise.resolve().then(function() {
     return getModelMethodPromise(schemaManager, "UserModel", "findOne");
   })
@@ -405,7 +430,7 @@ function _findUserByPhoneNumber({ schemaManager, config, appType, data, errorBui
     });
 }
 
-function validateUser(packet = {}) {
+function validateUser (packet = {}) {
   const { schemaManager, config, appType, data, device } = packet;
   return _findUserByPhoneNumber(packet)
     .then(function(user) {
@@ -433,7 +458,7 @@ function validateUser(packet = {}) {
     });
 }
 
-function validateCustomer(packet = {}) {
+function validateCustomer (packet = {}) {
   const { appType, device } = packet;
   return _findUserByPhoneNumber(packet)
     .then(function(user) {
@@ -445,11 +470,9 @@ function validateCustomer(packet = {}) {
     .then(function(user) {
       return lodash.assign(packet, { user });
     });
-
 }
 
-function generateOTP(packet = {}) {
-  const { T, L } = packet;
+function generateOTP (packet = {}) {
   const { schemaManager, errorBuilder, config, appType, appPlatformType, language, user, device } = packet;
   return Promise.resolve().then(function() {
     return getModelMethodPromise(schemaManager, "VerificationModel", "findOne");
@@ -467,15 +490,39 @@ function generateOTP(packet = {}) {
       };
       return method(conditions, null, opts);
     })
-    .then(function(verification) {
-      const now = moment();
-      const nowPlus = now.add(config.otpTypingTime, "seconds");
+    .then(async function(verification) {
       if (verification) {
         if (verification.expiredTime) {
-          const oldExpiredTime = moment(verification.expiredTime);
-          if (nowPlus.isAfter(oldExpiredTime)) {
+          // const now = moment();
+          // const nowPlus = now.add(config.otpTypingTime, "seconds");
+          // const oldExpiredTime = moment(verification.expiredTime);
+          // if (nowPlus.isAfter(oldExpiredTime)) {
+          if (packet.hasResend) {
+            const verificationFindOneAndUpdate = await getModelMethodPromise(
+              schemaManager,
+              "VerificationModel",
+              "findOneAndUpdate"
+            );
+            const updatedVerification = await verificationFindOneAndUpdate(
+              { _id: verification._id },
+              { $inc: { resendTimes: 1 } },
+              { new: true }
+            );
+            if (updatedVerification.resendTimes > config.maxResendTimes) {
+              throw errorBuilder.newError("VerificationExceedMaxResendTimes", {
+                payload: {
+                  verification: updatedVerification._id,
+                  maxResendTimes: config.maxResendTimes,
+                },
+                language
+              });
+            }
+          }
+          if (momentHelper.checkTimeHasExpired(verification.expiredTime, config.otpTypingTime)) {
             // there is no time to press the received token, create another verification
             verification = null;
+          } else if (packet.hasResend) {
+            lodash.assign(packet, { skipped: false });
           } else {
             lodash.assign(packet, { skipped: true });
           }
@@ -492,7 +539,8 @@ function generateOTP(packet = {}) {
             key: genKey(),
             otp: otp.generate(config.otpSize, otpDefaultOpts),
             expiredIn: config.otpExpiredIn,
-            expiredTime: now.add(config.otpExpiredIn, "seconds").toDate(),
+            // expiredTime: now.add(config.otpExpiredIn, "seconds").toDate(),
+            expiredTime: momentHelper.getExpiredTime(config.otpExpiredIn),
             user: user._id,
             device: device._id,
             appType: appType,
@@ -525,7 +573,7 @@ function generateOTP(packet = {}) {
     });
 }
 
-function sendOTP(packet = {}) {
+async function sendOTP (packet = {}) {
   const { T, L } = packet;
   const { packageName, config, serviceSelector, verification, skipped, options, appType, appPlatformType } = packet;
   if (skipped === true) {
@@ -546,23 +594,28 @@ function sendOTP(packet = {}) {
       otp: verification.otp,
       text: format(config.smsTemplate, { otp: verification.otp }),
     };
-    Promise.resolve(ref.method(msgInfo, options)).then(function(smsResult) {
+    await Promise.resolve(ref.method(msgInfo, options)).then(function(smsResult) {
       L.has("debug") && L.log("debug", T.add({ smsResult }).toMessage({
         tmpl: "SendSMS result: ${smsResult}"
+      }));
+      lodash.set(packet, "verification.otpType", lodash.get(smsResult, "type"));
+    }).catch(function(error) {
+      L.has("debug") && L.log("debug", T.add({ error }).toMessage({
+        tmpl: "SendSMS error: ${error}"
       }));
     });
   }
   return Promise.resolve(packet);
 }
 
-function registerEnd(packet = {}) {
+function registerEnd (packet = {}) {
   const { config, verification } = packet;
   return {
     data: lodash.pick(verification, config.projection)
   };
 }
 
-function verifyOTP(packet = {}) {
+function verifyOTP (packet = {}) {
   const { eventor, schemaManager, errorBuilder, oauthApi, appType, language, data } = packet;
   if (appType !== APP_TYPES.AGENT && appType != APP_TYPES.CUSTOMER) {
     return Promise.reject(errorBuilder.newError("MethodUnsupportedForAppType", {
@@ -598,9 +651,11 @@ function verifyOTP(packet = {}) {
           }, language
         }));
       }
-      const now = moment();
-      const expiredTime = moment(verification.expiredTime);
-      if (now.isAfter(expiredTime)) {
+      // const now = moment();
+      // const expiredTime = moment(verification.expiredTime);
+      // if (now.isAfter(expiredTime)) {
+      if (momentHelper.checkTimeHasExpired(verification.expiredTime)) {
+        const expiredTime = momentHelper.getCurrentTime(verification.expiredTime);
         return Promise.reject(errorBuilder.newError("OTPHasExpired", {
           payload: {
             key: data.key,
@@ -687,7 +742,7 @@ function verifyOTP(packet = {}) {
     });
 }
 
-function refreshToken(packet = {}) {
+function refreshToken (packet = {}) {
   const { schemaManager, errorBuilder, oauthApi, config, appType, appPlatformType, language, data } = packet;
   const { revisions } = config;
   // search user[appType].refreshToken
@@ -716,9 +771,10 @@ function refreshToken(packet = {}) {
       if (user[appType].verified == false) {
         return Promise.reject(errorBuilder.newError("UserIsNotVerified", { language }));
       }
-      const now = moment();
       const expiredIn = config.tokenExpiredIn;
-      const expiredTime = now.add(config.tokenExpiredIn, "seconds");
+      const expiredTime = momentHelper.getExpiredTime(expiredIn);
+      // const now = moment();
+      // const expiredTime = now.add(config.tokenExpiredIn, "seconds");
       let constraints = { appType, expiredIn, expiredTime };
       let refreshToken = user[appType].refreshToken;
       if (appType === APP_TYPES.ADMIN) {
@@ -767,7 +823,7 @@ function refreshToken(packet = {}) {
     });
 }
 
-function filterUserInfo(packet = {}) {
+function filterUserInfo (packet = {}) {
   const { appType, user = {} } = packet;
 
   let data = lodash.assign({
@@ -795,8 +851,8 @@ function filterUserInfo(packet = {}) {
   return lodash.assign(packet, { data });
 }
 
-function updateUser(packet = {}) {
-  const { bcryptor, schemaManager, errorBuilder, config, appType, language, data = {} } = packet;
+function updateUser (packet = {}) {
+  const { pwdRuler, bcryptor, schemaManager, errorBuilder, config, appType, language, data = {} } = packet;
 
   let p = getModelMethodPromise(schemaManager, "UserModel", "findOne");
 
@@ -823,6 +879,14 @@ function updateUser(packet = {}) {
       // make the query
       return Promise.all([findByHolderId, findByUsername])
         .spread(function(byHolderId, byUsername) {
+          if (data["password"]) {
+            if (!pwdRuler.isValid(data["password"])) {
+              return Promise.reject(errorBuilder.newError("PwdRuleInvalid", {
+                payload: {
+                }, language
+              }));
+            }
+          }
           if (byHolderId) {
             if (byUsername) {
               if (byHolderId._id.toString() !== byUsername._id.toString()) {
@@ -915,7 +979,7 @@ function updateUser(packet = {}) {
     });
   } else if (appType === APP_TYPES.CUSTOMER) {
     if (!data["holderId"] && !data["phoneNumber"]) {
-      return Promise.reject(errorBuilder.newError("InsuranceCustomerAppHolderIdOrPhoneNumberExpected",
+      return Promise.reject(errorBuilder.newError("CustomerAppHolderIdOrPhoneNumberExpected",
         { payload: lodash.pick(data, ["holderId", "phoneNumber"]), language }));
     }
     p = p.then(function(method) {
@@ -1046,7 +1110,7 @@ function updateUser(packet = {}) {
   return p;
 }
 
-function getVerification(packet = {}) {
+function getVerification (packet = {}) {
   const { appType, data } = packet;
 
   let p = Promise.resolve();
@@ -1073,7 +1137,7 @@ function getVerification(packet = {}) {
   return p;
 }
 
-function resetVerification(packet = {}) {
+function resetVerification (packet = {}) {
   const { schemaManager, errorBuilder, config, appType, language, data } = packet;
 
   let p = getModelMethodPromise(schemaManager, "VerificationModel", "findOne");
@@ -1096,8 +1160,9 @@ function resetVerification(packet = {}) {
 
   p = p.then(function(verification) {
     if (verification) {
-      const now = moment().subtract(config.otpTypingTime, "seconds");
-      verification.expiredTime = now;
+      // const now = moment().subtract(config.otpTypingTime, "seconds");
+      // verification.expiredTime = now;
+      verification.expiredTime = momentHelper.getTimeBeforeCurrent(config.otpTypingTime);
       return verification.save();
     }
     return verification;
@@ -1114,7 +1179,7 @@ function resetVerification(packet = {}) {
 
 const MIRROR_USER_FIELDS = ["firstName", "lastName", "email", "activated", "deleted"];
 
-function assignUserData(appType, user = {}, data = {}, bcryptor) {
+function assignUserData (appType, user = {}, data = {}, bcryptor) {
   lodash.forEach(MIRROR_USER_FIELDS, function(field) {
     if (field in data) {
       user[field] = data[field];
@@ -1174,7 +1239,7 @@ function assignUserData(appType, user = {}, data = {}, bcryptor) {
   return user;
 }
 
-function revokeToken(packet = {}) {
+function revokeToken (packet = {}) {
   const { schemaManager, appType, data } = packet;
   let p = getModelMethodPromise(schemaManager, "UserModel", "findOne");
   if (appType === APP_TYPES.ADMIN) {
@@ -1208,11 +1273,11 @@ function revokeToken(packet = {}) {
   return p;
 }
 
-function injectOptions(packet = {}, options) {
+function injectOptions (packet = {}, options) {
   return Object.assign(packet, { options });
 }
 
-function sanitizeAppType(appType) {
+function sanitizeAppType (appType) {
   if (["adminApp", "admin", "cc", "operation"].indexOf(appType) >= 0) {
     return APP_TYPES.ADMIN;
   } else if (["clientApp", "partyApp", "partnerApp", "client", "party", "partner"].indexOf(appType) >= 0) {
@@ -1225,7 +1290,7 @@ function sanitizeAppType(appType) {
   return null;
 }
 
-function sanitizeAppPlatformType(appPlatformType) {
+function sanitizeAppPlatformType (appPlatformType) {
   if (["android", "ios", "iOS", "Android", "app"].indexOf(appPlatformType) >= 0) {
     return APP_PLATFORM_TYPES.APP;
   } else if (["web", "Web", "WEB"].indexOf(appPlatformType) >= 0) {
@@ -1236,7 +1301,7 @@ function sanitizeAppPlatformType(appPlatformType) {
   return null;
 }
 
-function validateAppType(packet) {
+function validateAppType (packet) {
   const appType = sanitizeAppType(packet.appType);
   const appPlatformType = sanitizeAppPlatformType(packet.appPlatformType);
   if (appType == null) {
@@ -1247,7 +1312,7 @@ function validateAppType(packet) {
   return Promise.resolve(packet);
 }
 
-function sanitizePhone(data = {}, config = {}, errorBuilder, language) {
+function sanitizePhone (data = {}, config = {}, errorBuilder, language) {
   config.defaultCountryCode = config.defaultCountryCode || "US";
   if (lodash.isEmpty(data.phoneNumber) && lodash.isEmpty(data.phone)) {
     return errorBuilder.newError("PhoneNumberMustBeNotNull", { language });
@@ -1281,7 +1346,7 @@ function sanitizePhone(data = {}, config = {}, errorBuilder, language) {
   return null;
 }
 
-function parsePhoneNumber(phoneString, defaultCountryCode) {
+function parsePhoneNumber (phoneString, defaultCountryCode) {
   const number = phoneUtil.parseAndKeepRawInput(phoneString, defaultCountryCode);
   return {
     country: phoneUtil.getRegionCodeForNumber(number),
@@ -1291,11 +1356,11 @@ function parsePhoneNumber(phoneString, defaultCountryCode) {
   };
 }
 
-function isValidPhoneNumber(phoneString, defaultCountryCode) {
+function isValidPhoneNumber (phoneString, defaultCountryCode) {
   return phoneUtil.isValidNumber(phoneUtil.parse(phoneString, defaultCountryCode));
 }
 
-function matchFixedOTP(packet = {}, phoneNumber) {
+function matchFixedOTP (packet = {}, phoneNumber) {
   const { config, schemaManager } = packet;
   if (lodash.isArray(config.presetOTPs) && !lodash.isEmpty(config.presetOTPs)) {
     for (const i in config.presetOTPs) {
@@ -1326,11 +1391,11 @@ function matchFixedOTP(packet = {}, phoneNumber) {
   return Promise.resolve(null);
 }
 
-function _extractUserQuery(appType, data) {
+function _extractUserQuery (appType, data) {
   return lodash.assign({ appType }, lodash.pick(data, ["holderId", "phoneNumber", "username"]));
 }
 
-function _checkUser({ appType, errorBuilder, language, data }, user) {
+function _checkUser ({ appType, errorBuilder, language, data }, user) {
   if (!user) {
     return Promise.reject(errorBuilder.newError("UserNotFound", {
       payload: _extractUserQuery(appType, data),

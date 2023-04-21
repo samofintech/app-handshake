@@ -23,7 +23,8 @@ module.exports = {
       permissionGroups: [String],
       holderId: { type: Schema.Types.ObjectId },
       verified: { type: Boolean, default: false },
-      refreshToken: { type: String }
+      refreshToken: { type: String },
+      invalidPasswordCount: { type: Number, default: 0 },
     },
     agentApp: {
       device: { type: Schema.Types.ObjectId, ref: "DeviceModel" },
