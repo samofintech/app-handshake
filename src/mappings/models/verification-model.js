@@ -20,6 +20,7 @@ module.exports = {
     appPlatformType: { type: String },
     phoneNumber: { type: String },
     verified: { type: Boolean, default: false },
+    resendTimes: { type: Number },
     // Filtering
     tags: [String],
     deleted: { type: Boolean, default: false },

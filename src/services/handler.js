@@ -48,12 +48,14 @@ function Handler (params = {}) {
   config.otpExpiredIn = config.otpExpiredIn || 15 * 60;
   config.otpTypingTime = config.otpTypingTime || 2 * 60;
   config.otpSize = config.otpSize || 7;
+  config.maxResendTimes = config.maxResendTimes || 3;
   config.smsTemplate = config.smsTemplate ||
     "Please use the code - ${otp} to verify your phone for app authentication";
   config.tokenExpiredIn = config.tokenExpiredIn || 15 * 60;
   config.defaultCountryCode = config.defaultCountryCode || "VN";
   config.selectedFields = config.selectedFields || {
     key: 1, expiredIn: 1, expiredTime: 1, phoneNumber: 0,
+    otpType: 1,
   };
   config.projection = [];
   lodash.forOwn(config.selectedFields, function(flag, fieldName) {
@@ -488,16 +490,39 @@ function generateOTP (packet = {}) {
       };
       return method(conditions, null, opts);
     })
-    .then(function(verification) {
+    .then(async function(verification) {
       if (verification) {
         if (verification.expiredTime) {
           // const now = moment();
           // const nowPlus = now.add(config.otpTypingTime, "seconds");
           // const oldExpiredTime = moment(verification.expiredTime);
           // if (nowPlus.isAfter(oldExpiredTime)) {
+          if (packet.hasResend) {
+            const verificationFindOneAndUpdate = await getModelMethodPromise(
+              schemaManager,
+              "VerificationModel",
+              "findOneAndUpdate"
+            );
+            const updatedVerification = await verificationFindOneAndUpdate(
+              { _id: verification._id },
+              { $inc: { resendTimes: 1 } },
+              { new: true }
+            );
+            if (updatedVerification.resendTimes > config.maxResendTimes) {
+              throw errorBuilder.newError("VerificationExceedMaxResendTimes", {
+                payload: {
+                  verification: updatedVerification._id,
+                  maxResendTimes: config.maxResendTimes,
+                },
+                language
+              });
+            }
+          }
           if (momentHelper.checkTimeHasExpired(verification.expiredTime, config.otpTypingTime)) {
             // there is no time to press the received token, create another verification
             verification = null;
+          } else if (packet.hasResend) {
+            lodash.assign(packet, { skipped: false });
           } else {
             lodash.assign(packet, { skipped: true });
           }
@@ -548,7 +573,7 @@ function generateOTP (packet = {}) {
     });
 }
 
-function sendOTP (packet = {}) {
+async function sendOTP (packet = {}) {
   const { T, L } = packet;
   const { packageName, config, serviceSelector, verification, skipped, options } = packet;
   if (skipped === true) {
@@ -567,9 +592,14 @@ function sendOTP (packet = {}) {
       otp: verification.otp,
       text: format(config.smsTemplate, { otp: verification.otp }),
     };
-    Promise.resolve(ref.method(msgInfo, options)).then(function(smsResult) {
+    await Promise.resolve(ref.method(msgInfo, options)).then(function(smsResult) {
       L.has("debug") && L.log("debug", T.add({ smsResult }).toMessage({
         tmpl: "SendSMS result: ${smsResult}"
+      }));
+      lodash.set(packet, "verification.otpType", lodash.get(smsResult, "type"));
+    }).catch(function(error) {
+      L.has("debug") && L.log("debug", T.add({ error }).toMessage({
+        tmpl: "SendSMS error: ${error}"
       }));
     });
   }
