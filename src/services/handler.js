@@ -575,8 +575,14 @@ function generateOTP (packet = {}) {
 
 async function sendOTP (packet = {}) {
   const { T, L } = packet;
-  const { packageName, config, serviceSelector, verification, skipped, options } = packet;
+  const { packageName, config, serviceSelector, verification, skipped, options, appType, appPlatformType } = packet;
   if (skipped === true) {
+    const messenderService = [packageName, "messender"].join(chores.getSeparator());
+    const ref = serviceSelector.lookupMethod(messenderService, "getOTPType");
+    if (ref.service && ref.method) {
+      const res = await ref.method({ appType, appPlatformType }, options);
+      lodash.set(packet, "verification.otpType", lodash.get(res, "type"));
+    }
     return Promise.resolve(packet);
   }
   const messenderService = [packageName, "messender"].join(chores.getSeparator());
@@ -588,6 +594,8 @@ async function sendOTP (packet = {}) {
       tmpl: "An OTP has been created for phone: ${phoneNumber}"
     }));
     const msgInfo = {
+      appType,
+      appPlatformType,
       phoneNumber: verification.phoneNumber,
       otp: verification.otp,
       text: format(config.smsTemplate, { otp: verification.otp }),
