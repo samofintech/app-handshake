@@ -26,6 +26,15 @@ module.exports = {
       refreshToken: { type: String },
       invalidPasswordCount: { type: Number, default: 0 },
     },
+    backofficeApp: {
+      email: { type: String },
+      permissions: [String],
+      permissionGroups: [String],
+      holderId: { type: Schema.Types.ObjectId },
+      verified: { type: Boolean, default: false },
+      refreshToken: { type: String },
+      googleId: { typ: String }
+    },
     agentApp: {
       device: { type: Schema.Types.ObjectId, ref: "DeviceModel" },
       phoneNumber: { type: String },
