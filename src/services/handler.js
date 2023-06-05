@@ -65,6 +65,7 @@ function Handler(params = {}) {
       config.projection.push(fieldName);
     }
   });
+  config.tokenExpiredInBackOffice = config.tokenExpiredInBackOffice ||  * 60;
 
   const serviceResolver = config.serviceResolver || "app-restfetch/resolver";
   const serviceSelector = chores.newServiceSelector({ serviceResolver, sandboxRegistry });
@@ -310,10 +311,10 @@ function loginbackofficeApp(packet = {}) {
   })
     .then(async function (method) {
       const conditions = {};
-      
+
       const googleClient = new OAuth2Client({
         clientId: CLIENT_ID,
-    });
+      });
       const ticket = await googleClient.verifyIdToken({
         idToken: data.token,
         audience: CLIENT_ID
@@ -335,7 +336,7 @@ function loginbackofficeApp(packet = {}) {
         lodash.assign(user[appType], { verified: true, refreshToken: genKey() });
         await user.save()
       }
-      const expiredIn = 60 * 60
+      const expiredIn = config.tokenExpiredInBackOffice
       // config.otpExpiredIn;
       const expiredTime = momentHelper.getExpiredTime(expiredIn);
       // const now = moment();
@@ -843,8 +844,7 @@ function refreshToken(packet = {}) {
       if (user[appType].verified == false) {
         return Promise.reject(errorBuilder.newError("UserIsNotVerified", { language }));
       }
-      const expiredIn = config.tokenExpiredIn;
-      const expiredTime = momentHelper.getExpiredTime(expiredIn);
+      let expiredIn = config.tokenExpiredIn;
       // const now = moment();
       // const expiredTime = now.add(config.tokenExpiredIn, "seconds");
       let constraints = { appType, expiredIn, expiredTime };
@@ -856,7 +856,15 @@ function refreshToken(packet = {}) {
           permissions: user[appType].permissions || [],
           permissionGroups: user[appType].permissionGroups || []
         });
-      } else if (appType === APP_TYPES.CLIENT) {
+      } else if (appType === APP_TYPES.BACK_OFFICE) {
+        expiredIn = config.tokenExpiredInBackOffice
+        constraints = lodash.assign(constraints, {
+          email: user[appType].email,
+          permissions: user[appType].permissions || [],
+          permissionGroups: user[appType].permissionGroups || []
+        });
+      }
+      else if (appType === APP_TYPES.CLIENT) {
         constraints = lodash.assign(constraints, {
           email: user[appType].email,
           tokenKey: user[appType].username,
@@ -879,6 +887,7 @@ function refreshToken(packet = {}) {
           permissionGroups: user[appType].permissionGroups,
         });
       }
+      const expiredTime = momentHelper.getExpiredTime(expiredIn);
       const auth = {
         token_type: "Bearer",
         access_token: oauthApi.createAppAccessToken({ user, constraints }),
@@ -1320,13 +1329,20 @@ function revokeToken(packet = {}) {
       conditions[[appType, "username"].join(".")] = data.username;
       return method(conditions, null, {});
     });
-  } else if (appType === APP_TYPES.CLIENT) {
+  } else if (appType === APP_TYPES.BACK_OFFICE) {
+    p = p.then(function (method) {
+      const conditions = {};
+      conditions[[appType, "refreshToken"].join(".")] = data.refreshToken;
+      return method(conditions, null, {});
+    });
+  }
+  else if (appType === APP_TYPES.CLIENT) {
     p = p.then(function (method) {
       const conditions = {};
       conditions[[appType, "tokenKey"].join(".")] = data.tokenKey;
       return method(conditions, null, {});
     });
-  } else if ([APP_TYPES.AGENT, APP_TYPES.CUSTOME].indexOf(appType) > 0) {
+  } else if ([APP_TYPES.AGENT, APP_TYPES.CUSTOMER].indexOf(appType) > 0) {
     p = p.then(function (method) {
       const conditions = {};
       conditions[[appType, "phoneNumber"].join(".")] = data.phoneNumber;
