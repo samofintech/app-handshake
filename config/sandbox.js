@@ -3,6 +3,7 @@
 const path = require("path");
 
 module.exports = {
+  CLIENT_ID: process.env.CLIENT_ID || `859324707242-1si4ens7seac9pbtiqp462skrl08mtq8.apps.googleusercontent.com`,
   plugins: {
     appHandshake: {
       errorCodes: {
@@ -32,6 +33,11 @@ module.exports = {
         UserIsNotVerified: {
           message: "user has not be verified",
           returnCode: 1104,
+          statusCode: 400
+        },
+        EmailIsNotInternal: {
+          message: "email has not internal",
+          returnCode: 1105,
           statusCode: 400
         },
         PasswordNotFound: {

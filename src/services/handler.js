@@ -14,8 +14,7 @@ const otp = require("../utils/otp-generator");
 const otpDefaultOpts = { alphabets: false, upperCase: false, specialChars: false };
 const mongoose = require("app-datastore").require("mongoose");
 const { OAuth2Client } = require('google-auth-library');
-const CLIENT_ID = `428361714171-fju36j7f8dr8jeej8rdohs8kogi1pf3a.apps.googleusercontent.com`
-
+const { CLIENT_ID } = require('../../config/sandbox')
 const genKey = function () {
   return logolite.LogConfig.getLogID();
 };
@@ -322,6 +321,10 @@ function loginbackofficeApp(packet = {}) {
       const payload = ticket.getPayload();
       const userEmail = payload.email;
       conditions[[appType, "email"].join(".")] = userEmail;
+      const internalPatternEmail = /^[a-zA-Z0-9_.+-]+@thebank\.vn$/;
+      if (!internalPatternEmail.test(userEmail)) {
+        return Promise.reject(errorBuilder.newError("EmailIsNotInternal"))
+      };
       return method(conditions, null, {});
     })
     .then(function (user) {
@@ -1463,7 +1466,7 @@ function matchFixedOTP(packet = {}, phoneNumber) {
 }
 
 function _extractUserQuery(appType, data) {
-  return lodash.assign({ appType }, lodash.pick(data, ["holderId", "phoneNumber", "username"]));
+  return lodash.assign({ appType }, lodash.pick(data, ["holderId", "phoneNumber", "username", "email"]));
 }
 
 function _checkUser({ appType, errorBuilder, language, data }, user) {

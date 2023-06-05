@@ -11,7 +11,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+ssh://git@github.com:samofintech/app-handshake."
+    "url": "git+ssh://git@github.com:samofintech/app-handshake.git"
   },
   "engines": {
     "node": ">=12"
@@ -28,7 +28,7 @@
     "clean": "rm -rf ./lib",
     "clean-modules": "rm -rf ./node_modules && rm ./package-lock.json",
     "bootstrap": "npm install --ignore-scripts; npm --prefix=test install --ignore-scripts",
-    "build": "npm exec -- babel ./src -d ./lib",
+    "build": "babel ./src -d ./lib",
     "check": "npm exec -- eslint ./src index.js",
     "check-silent": "npm exec -- eslint --quiet ./src index.js",
     "pretest": "npm run check-silent && npm run clean && NODE_ENV=${DEVEBOT_NODE_ENV:-test} npm run build",
