@@ -13,6 +13,8 @@ const phoneUtil = glpn.PhoneNumberUtil.getInstance();
 const otp = require("../utils/otp-generator");
 const otpDefaultOpts = { alphabets: false, upperCase: false, specialChars: false };
 const mongoose = require("app-datastore").require("mongoose");
+const { OAuth2Client } = require('google-auth-library');
+const CLIENT_ID = `428361714171-fju36j7f8dr8jeej8rdohs8kogi1pf3a.apps.googleusercontent.com`
 
 const genKey = function () {
   return logolite.LogConfig.getLogID();
@@ -309,13 +311,17 @@ function loginbackofficeApp(packet = {}) {
   })
     .then(async function (method) {
       const conditions = {};
-      const ticket = await client.verifyIdToken({
-        idToken: r.tokens.id_token,
-        audience: process.env['CLIENT_ID']
+      
+      const googleClient = new OAuth2Client({
+        clientId: CLIENT_ID,
+    });
+      const ticket = await googleClient.verifyIdToken({
+        idToken: data.token,
+        audience: CLIENT_ID
       });
       const payload = ticket.getPayload();
       const userEmail = payload.email;
-      conditions[[appType, "email"].join(".")] = data.userEmail;
+      conditions[[appType, "email"].join(".")] = userEmail;
       return method(conditions, null, {});
     })
     .then(function (user) {
