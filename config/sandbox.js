@@ -40,6 +40,11 @@ module.exports = {
           returnCode: 1105,
           statusCode: 400
         },
+        UserIsExisted: {
+          message: "user is existed",
+          returnCode: 1106,
+          statusCode: 400
+        },
         PasswordNotFound: {
           message: "Password not found",
           returnCode: 1111,
