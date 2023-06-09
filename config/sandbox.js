@@ -65,6 +65,11 @@ module.exports = {
           returnCode: 1114,
           statusCode: 400
         },
+        GoogleTokenIsExpired: {
+          message: "Google token is expired",
+          returnCode: 1115,
+          statusCode: 400
+        },
         UsernameHasOccupied: {
           message: "The username has already occupied",
           returnCode: 1121,
