@@ -43,7 +43,6 @@ function Handler(params = {}) {
   const L = params.loggingFactory.getLogger();
   const T = params.loggingFactory.getTracer();
   const packageName = params.packageName || "app-handshake";
-
   const { bcryptor, oauthApi, errorManager, sandboxRegistry, schemaManager, eventor, pwdRuler } = params;
 
   const config = lodash.get(params, ["sandboxConfig"], {});

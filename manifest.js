@@ -25,6 +25,9 @@ module.exports = {
           "smsTemplate": {
             "type": "string"
           },
+          "kafkaServer": {
+            "type": "string"
+          },
           "tokenExpiredIn": {
             "type": "number"
           },
