@@ -28,6 +28,15 @@ module.exports = {
           "kafkaServer": {
             "type": "string"
           },
+          "emailTemplateId": {
+            "type": "string"
+          },
+          "emailServiceFrom": {
+            "type": "string"
+          },
+          "emailBackOfficeLink": {
+            "type": "string"
+          },
           "tokenExpiredIn": {
             "type": "number"
           },
