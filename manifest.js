@@ -28,6 +28,12 @@ module.exports = {
           "kafkaServer": {
             "type": "string"
           },
+          "kafkaUsername": {
+            "type": "string"
+          },
+          "kafkaPassword": {
+            "type": "string"
+          },
           "emailTemplateId": {
             "type": "string"
           },
