@@ -858,6 +858,7 @@ function refreshToken(packet = {}) {
       } else if (appType === APP_TYPES.BACK_OFFICE) {
         expiredIn = config.tokenExpiredInBackOffice
         constraints = lodash.assign(constraints, {
+          expiredIn,
           email: user[appType].email,
           permissions: user[appType].permissions || [],
           permissionGroups: user[appType].permissionGroups || []
