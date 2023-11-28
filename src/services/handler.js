@@ -64,7 +64,7 @@ function Handler(params = {}) {
       config.projection.push(fieldName);
     }
   });
-  config.tokenExpiredInBackOffice = config.tokenExpiredInBackOffice ||  * 60;
+  config.tokenExpiredInBackOffice = config.tokenExpiredInBackOffice ||  60* 60;
 
   const serviceResolver = config.serviceResolver || "app-restfetch/resolver";
   const serviceSelector = chores.newServiceSelector({ serviceResolver, sandboxRegistry });
